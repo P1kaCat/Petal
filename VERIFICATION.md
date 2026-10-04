@@ -56,3 +56,8 @@ real Sodium installation, persistent settings with secure storage, and
 rejection of an unknown IPC method. Discover, Profiles, and Settings were
 visually inspected. The README screenshots were recaptured from the English
 application using isolated data in `artifacts/smoke-english`.
+
+The Windows portable `Petal 0.1.2.exe` was rebuilt successfully and passed the
+same four UI checks with fresh isolated data in
+`artifacts/smoke-english-portable`, including a real Sodium download. The
+portable process exited with code 0.
