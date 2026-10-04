@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
+  <title id="title">Petal — Your Minecraft, in bloom.</title>
+  <desc id="desc">Violet flower branding. Minecraft Java launcher. Modrinth plus CurseForge. Windows alpha.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#171b25"/><stop offset="1" stop-color="#262039"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#b59cf4" stop-opacity=".14"/><stop offset="1" stop-color="#b59cf4" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1280" height="360" rx="24" fill="url(#bg)"/>
+  <circle cx="1080" cy="160" r="260" fill="url(#glow)"/>
+  <rect x="1" y="1" width="1278" height="358" rx="23" fill="none" stroke="#41374f"/>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <text x="64" y="116" fill="#b59cf4" font-size="88">✿</text>
+    <text x="155" y="110" fill="#f1eff8" font-size="58" font-weight="700" letter-spacing="-3">petal</text>
+    <rect x="307" y="76" width="82" height="27" rx="6" fill="#30283f" stroke="#66547e"/>
+    <text x="348" y="94" fill="#c8b5f0" font-size="11" letter-spacing="2" text-anchor="middle">ALPHA</text>
+    <text x="69" y="176" fill="#f1eff8" font-size="41" font-weight="600" letter-spacing="-1">Your Minecraft, in bloom.</text>
+    <text x="70" y="214" fill="#aaa4bc" font-size="19">Two catalogs. One place for your next adventure.</text>
+    <rect x="70" y="260" width="118" height="34" rx="7" fill="#223b31"/>
+    <circle cx="86" cy="277" r="3" fill="#83d6a9"/>
+    <text x="99" y="283" fill="#a0e4bb" font-size="14">Modrinth</text>
+    <text x="204" y="283" fill="#a59bb6" font-size="20">+</text>
+    <rect x="233" y="260" width="132" height="34" rx="7" fill="#3c2e29"/>
+    <circle cx="249" cy="277" r="3" fill="#f0ae7e"/>
+    <text x="262" y="283" fill="#f4bf98" font-size="14">CurseForge</text>
+    <text x="1209" y="283" fill="#b9accf" font-size="13" text-anchor="end" letter-spacing="2">MINECRAFT JAVA · WINDOWS</text>
+    <text x="1080" y="214" fill="#b59cf4" opacity=".12" font-size="236" text-anchor="middle">✿</text>
+  </g>
+</svg>

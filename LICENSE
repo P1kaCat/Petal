@@ -1,0 +1,81 @@
+Petal Restricted Source License
+Version 1.0 — October 5, 2026
+
+Copyright (c) 2026 P1kaCat and the respective contributors.
+All rights reserved except as expressly granted below.
+
+1. Scope
+
+This license covers original Petal source code, documentation, and original
+visual assets in https://github.com/P1kaCat/Petal (the Software), only to the
+extent their rights holders can grant these permissions. Third-party software,
+game assets, logos, and content are excluded and retain their owners' terms.
+See THIRD_PARTY_NOTICES.md. This is not an open-source license.
+
+2. Limited permission
+
+You may download, inspect, build, and run the Software for your own personal,
+non-commercial use. You may modify it locally for that purpose and keep private
+backups. Retain this license and copyright notices.
+
+3. No redistribution or republication
+
+Except under Section 4 or separate written permission from the relevant rights
+holders, you may not publish, republish, distribute, sublicense, sell, rent,
+mirror, or make the Software or modified or derivative versions available to
+others, whether free or paid. This includes source, binaries, installers,
+packages, and substantial portions of protected original code or assets.
+Changing the name, branding, or code, or combining it with another project does
+not authorize redistribution. Hosted services and commercial use also require
+written permission.
+
+4. GitHub hosting and contributions
+
+The permissions required by the applicable GitHub Terms of Service to host,
+display, view, and fork a public repository on GitHub remain unaffected.
+In addition, you may maintain a GitHub fork and publish proposed changes solely
+to prepare or submit a pull request to the official Petal repository. Retain
+the original notices and identify it as a contribution fork. This exception
+does not authorize independent releases, binaries, deployments, mirrors, or
+distribution outside that workflow. For unrelated GitHub forks, it grants no
+rights beyond those required by GitHub's applicable terms.
+
+Project proposals and contributions are accepted only through issues and pull
+requests in https://github.com/P1kaCat/Petal, following CONTRIBUTING.md.
+Submitting a contribution does not authorize publishing a separate version.
+
+5. Contribution permissions
+
+When intentionally submitting original material for inclusion through a GitHub
+pull request, you represent that you have the right to submit it under this
+license. You retain ownership of your contribution. You also grant the Petal
+maintainer, P1kaCat, a worldwide, non-exclusive, royalty-free, perpetual,
+irrevocable license to use, reproduce, modify, display, and distribute that
+contribution as part of official Petal source and releases, and to sublicense
+it under this Petal Restricted Source License. Identify third-party material
+and its license, and obtain the necessary permissions. No copyright assignment
+is required.
+
+6. Services and branding
+
+This license grants no access to Minecraft, Microsoft, Modrinth, or CurseForge
+services, accounts, API keys, or content. Their terms apply independently.
+It grants no right to present a derivative as an official Petal release or
+claim endorsement by Petal or any third-party platform.
+
+7. Termination and reserved rights
+
+Permissions granted to you terminate automatically upon breach. Stop using
+the Software and delete copies you control, except where retention is required
+by law. Rights not expressly granted are reserved. Nothing here limits rights
+granted by mandatory applicable law or third-party owners over their material.
+Request extra permissions through an official repository issue; the request
+itself is not permission.
+
+8. Disclaimer
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED
+"AS IS", WITHOUT EXPRESS OR IMPLIED WARRANTIES, INCLUDING MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. COPYRIGHT HOLDERS
+AND CONTRIBUTORS SHALL NOT BE LIABLE FOR CLAIMS, DAMAGES, OR OTHER LIABILITY
+ARISING FROM THE SOFTWARE OR ITS USE.

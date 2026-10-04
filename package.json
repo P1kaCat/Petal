@@ -1,9 +1,10 @@
 {
   "name": "petal-launcher",
   "version": "0.1.1",
-  "description": "Launcher Minecraft avec Modrinth et CurseForge",
+  "description": "Minecraft Java launcher bringing Modrinth and CurseForge together",
   "private": true,
-  "author": "Petal contributors",
+  "author": "P1kaCat",
+  "license": "SEE LICENSE IN LICENSE",
   "packageManager": "pnpm@11.25.0",
   "main": "src/main.cjs",
   "scripts": {

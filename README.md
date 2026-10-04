@@ -1,97 +1,145 @@
-# Petal
+<p align="center">
+  <img src="docs/media/header.svg" alt="Petal — Your Minecraft, in bloom. Modrinth + CurseForge." width="100%">
+</p>
 
-Petal est une première version de launcher Minecraft Java pour Windows, avec une interface française qui réunit Modrinth et CurseForge.
+<p align="center">
+  <strong>A Minecraft Java launcher with room for every adventure.</strong><br>
+  Discover mods, build separate worlds, and manage your instances from one desktop app.
+</p>
 
-## Essayer l’application
+<p align="center">
+  <img src="https://img.shields.io/badge/status-alpha-b59cf4?style=flat-square" alt="Status: alpha">
+  <img src="https://img.shields.io/badge/platform-Windows-8b95aa?style=flat-square" alt="Platform: Windows">
+  <img src="https://img.shields.io/badge/Minecraft-Java_Edition-83c9a2?style=flat-square" alt="Minecraft Java Edition">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-restricted_source-c4a8e8?style=flat-square" alt="License: restricted source"></a>
+</p>
 
-Pour lancer le projet depuis ce dépôt, suivre la section **Développer** ci-dessous. La commande `pnpm dist` crée `dist/Petal 0.1.1.exe`. Cet exécutable portable ne nécessite aucun environnement Node.js pour être utilisé. Les exécutables et les dépendances installées ne sont pas inclus dans le dépôt. Cette version de développement n’est pas signée avec un certificat d’éditeur.
+<p align="center">
+  <a href="#a-look-inside">Screenshots</a> ·
+  <a href="#start-growing">Get started</a> ·
+  <a href="docs/SETUP.md">Setup guide</a> ·
+  <a href="https://github.com/P1kaCat/Petal/issues">Propose an idea</a> ·
+  <a href="CONTRIBUTING.md">Contribute</a>
+</p>
 
-1. Créer un profil avec un nom, une version de Minecraft et Fabric, Forge ou NeoForge.
-2. Rechercher des mods dans **Découvrir**. Le profil sélectionné filtre les résultats par version et chargeur.
-3. Cliquer sur **Installer**. Petal résout les dépendances requises de cette source et vérifie les empreintes des fichiers avant de les installer.
-4. Dans **Mes profils**, **Installer le jeu** prépare Minecraft, Java et le chargeur. Le premier téléchargement peut dépasser 1 Go. Les fichiers vérifiés sont réutilisés entre les profils.
-5. Configurer le compte Microsoft dans **Réglages**, puis cliquer sur **Jouer**.
+---
 
-Les sauvegardes, mods et configurations sont séparés par profil. Un mod peut être activé, désactivé, retiré ou mis à jour individuellement. Un fichier retiré est conservé dans le sous-dossier `removed` du profil. Le bouton **Dossier** permet d’y accéder, ainsi qu’aux journaux Minecraft dans `logs`.
+## A little space for a bigger world
 
-## CurseForge
+Petal brings **Modrinth and CurseForge** into a shared discovery interface,
+while keeping each platform's projects and identifiers distinct. Create a
+profile, choose your Minecraft version and mod loader, and find mods that fit.
 
-La recherche et les téléchargements CurseForge utilisent la [Core API officielle](https://docs.curseforge.com/rest-api/), qui exige une clé `x-api-key`.
+The Windows alpha uses a dark interface, a violet flower identity, and a real
+Minecraft cherry-grove panorama. **The current app interface is in French;
+this repository's documentation is in English.**
 
-Obtenir une clé auprès de CurseForge, puis la saisir dans **Réglages → CurseForge**. Petal chiffre la clé avec le stockage sécurisé de Windows ; elle n’est jamais intégrée au code ou affichée à nouveau dans le formulaire. Laisser le champ vide conserve la clé enregistrée ; la case de retrait permet de l’effacer.
+> **Development preview · v0.1.1**
+> Modrinth installation and Minecraft preparation have been exercised with real
+> downloads. CurseForge requires an authorized API key. Microsoft sign-in needs
+> an approved application registration. These two authenticated paths still need
+> end-to-end verification. See [validation details](VERIFICATION.md).
 
-Sans clé, Modrinth reste utilisable et l’interface indique que CurseForge est désactivé. Lorsqu’un fichier CurseForge ne propose pas de `downloadUrl`, Petal refuse son téléchargement automatique. Utiliser le lien de sa page, télécharger le `.jar`, puis **Mes profils → Importer un .jar**. La compatibilité et les dépendances d’un import manuel restent à vérifier.
+## A look inside
 
-## Microsoft et Minecraft Java
+### Discover your next adventure
 
-Petal utilise [MSMC](https://github.com/Hanro50/MSMC) pour la connexion Microsoft et les échanges Xbox/Minecraft. Le mot de passe est saisi dans la fenêtre Microsoft. Le jeton de renouvellement reste chiffré sur l’ordinateur ; le jeton Minecraft reste en mémoire.
+Search by Minecraft version and loader, choose a catalog, and keep the selected
+instance in view. The screenshot below is the actual alpha running with
+Modrinth enabled; CurseForge is awaiting an API key.
 
-L’application requiert son propre identifiant Microsoft. Il n’y a pas d’identifiant emprunté à un autre launcher dans le code.
+<p align="center">
+  <img src="docs/media/discover.png" alt="Actual Petal Discover screen: violet sidebar, Minecraft cherry panorama, Modrinth and CurseForge catalog tabs." width="100%">
+</p>
 
-1. Créer une inscription d’application dans [Microsoft Entra](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app), avec les comptes Microsoft personnels autorisés.
-2. Configurer une plateforme d’application mobile / de bureau et l’URI de retour `https://login.live.com/oauth20_desktop.srf`, selon la configuration du client public utilisé par MSMC. Voir la [documentation des URI de retour](https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-redirect-uri).
-3. Copier l’**ID d’application (client)** dans les réglages de Petal et enregistrer.
-4. Cliquer sur **Se connecter** avec un compte possédant Minecraft Java.
+### Give every world its own space
 
-L’inscription OAuth seule ne garantit pas que les services Xbox et Minecraft accepteront l’application. Si le service refuse l’identifiant (notamment `Invalid app registration`), obtenir les autorisations nécessaires pour l’application auprès des services concernés. La connexion et le lancement d’une partie authentifiée n’ont pas été validés avec un compte utilisateur dans cette session.
+Profiles keep saves, mods, and configuration separate. Manage installed mods,
+prepare the game, or open an instance folder from the same screen.
 
-Pour une distribution publique, l’identifiant de Petal pourra être préconfiguré une fois l’application enregistrée et autorisée. Une clé CurseForge distribuée dans un exécutable ne peut pas être considérée comme secrète : prévoir une stratégie d’accès adaptée avant de publier largement.
+<p align="center">
+  <img src="docs/media/profiles.png" alt="Actual Petal Profiles screen with a Minecraft 1.21.1 Fabric instance and Sodium installed." width="100%">
+</p>
 
-## Java et chargeurs
+## Built around your instances
 
-Petal lit le manifeste officiel de Minecraft pour choisir le composant Java requis et télécharge le runtime fourni par Mojang. Un chemin `java.exe` personnalisé peut remplacer ce comportement, mais sa version majeure doit correspondre à celle demandée par Minecraft.
+| Feature | What the alpha provides |
+| :--- | :--- |
+| **Two catalogs** | Modrinth discovery and installation; CurseForge integration requiring an authorized key. |
+| **Separate profiles** | Dedicated folders for each instance's saves, mods, and configuration. |
+| **Three mod loaders** | Automatic preparation for Fabric, Forge, and NeoForge. |
+| **Minecraft + Java** | Game files and the required Java runtime downloaded from official services. |
+| **Dependency handling** | Required dependencies, declared incompatibility checks, and file checksum verification. |
+| **Mod management** | Install, enable, disable, remove, update, and manually import `.jar` files. |
+| **Local credential storage** | Windows secure storage for the API key and refresh credentials; no bundled keys. |
 
-Fabric utilise les métadonnées officielles Fabric. Forge utilise la version recommandée, ou la dernière version annoncée dans les promotions officielles. NeoForge sélectionne une version stable correspondant à la version Minecraft. Le chargeur retenu est mémorisé par profil pour conserver un environnement reproductible.
+## Start growing
 
-Les téléchargements du jeu disposent d’un pool de connexions limité et de trois tentatives de reprise en cas d’interruption. Un échec reste visible dans l’interface ; une nouvelle préparation vérifie et réutilise le cache existant.
-
-## Développer
-
-Prérequis : Node.js 22 ou supérieur et pnpm 11. Le projet utilise Electron, des fichiers HTML/CSS/JavaScript sans compilation d’interface, et les bibliothèques `@xmcl` pour Minecraft.
+Install **Node.js 22 or later**, **pnpm 11**, and Git, then run:
 
 ```powershell
+git clone https://github.com/P1kaCat/Petal.git
+cd Petal
 pnpm install --frozen-lockfile
 pnpm start
 ```
 
-Créer l’exécutable Windows :
+Create a profile, select a Minecraft version and loader, then search for mods.
+Choose **Install game** in the profile view to prepare Minecraft and Java.
+The first game preparation can download more than 1 GB.
+
+To create the Windows portable executable:
 
 ```powershell
 pnpm dist
 ```
 
-Les versions de `@xmcl/core` et `@xmcl/installer` sont fixées et leur combinaison a été vérifiée. La version plus récente essayée au début du projet présentait une dépendance manquante lors du chargement ; ne pas les actualiser sans refaire les tests d’installation et de lancement.
+The output is `dist/Petal 0.1.1.exe`. Compiled builds and installed dependencies
+are not checked into this repository. This development executable is unsigned.
 
-## Vérifications
+See the [setup guide](docs/SETUP.md) for CurseForge configuration, Microsoft
+authentication, Java selection, data storage, and development checks.
 
-```powershell
-pnpm test
-node scripts/integration.cjs
-```
+## Where the alpha stands
 
-Les tests unitaires couvrent les chemins de fichiers Windows, la persistance, les filtres API, une API indisponible, les dépendances cycliques, les versions imposées par les dépendances, les incompatibilités déclarées, les collisions de fichiers, les empreintes, le retour à l’installation précédente après un échec et les reprises réseau.
+**Implemented:** instance management, both catalog integrations, dependency-aware
+mod installation, per-mod updates, loader preparation, and a Microsoft sign-in
+flow that requires the project's own approved client ID.
 
-Le test d’intégration télécharge réellement Minecraft 1.21.1, Java 21, Fabric, Forge et NeoForge. Il installe également Iris et Sodium via Modrinth et vérifie les arguments de démarrage. Ses données sont isolées dans `artifacts/integration`, sans lancer de partie ou connecter un compte.
+**Still to verify:** authorized CurseForge requests and downloads, Microsoft
+sign-in, and an authenticated Minecraft game session.
 
-Le mode de test de l’interface utilise un dossier séparé :
+**Not implemented yet:** Modrinth `.mrpack` and CurseForge modpack import/export,
+shader and resource-pack management, multiple accounts, and automatic recovery
+from a process crash during file replacement.
 
-```powershell
-$env:PETAL_SMOKE_TEST = '1'
-$env:PETAL_DATA_DIR = "$PWD/artifacts/smoke"
-pnpm start
-```
+Compatibility checks cover declared conflicts and file collisions; they cannot
+guarantee that every combination of mods works together. Projects with matching
+names across catalogs are not automatically treated as the same mod.
 
-Il vérifie la création d’un profil, une installation Modrinth réelle depuis l’interface, les réglages persistants et le rejet d’une méthode IPC inconnue. Il produit `checks.json`, `smoke.json`, `preview.png` et `profiles.png`, puis ferme l’application. Retirer ces deux variables d’environnement avant un lancement normal.
+## Help Petal grow
 
-## Données et limites de cette alpha
+Have a bug to report or a feature in mind? Open an
+[issue](https://github.com/P1kaCat/Petal/issues/new/choose) in this repository.
+Code and documentation changes are proposed through GitHub pull requests.
+The maintainer reviews contributions before merging them.
 
-Les données ordinaires se trouvent sous `%APPDATA%/petal-launcher/data` (le chemin exact est affiché dans les réglages). `state.json` contient les profils ; `credentials.json` contient uniquement un bloc chiffré. Les fichiers chiffrés sont liés au compte Windows : reconfigurer les identifiants après un transfert sur un autre ordinateur. Ne pas publier ces fichiers ni les caches de tests.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before preparing a change. Contribution
+forks are for submitting improvements to Petal; they are not permission to
+publish an independent release.
 
-- Les deux plateformes conservent leurs identifiants et leurs résultats distincts. Les noms identiques ne sont pas fusionnés automatiquement. Éviter d’installer le même mod depuis les deux sources : leurs métadonnées ne permettent pas toujours d’établir une correspondance fiable.
-- Les conflits contrôlés sont ceux déclarés par les plateformes et les collisions de noms de fichiers. Cela ne garantit pas que tous les mods pourront fonctionner ensemble.
-- L’installation de mods est restaurée après un échec de téléchargement ou d’enregistrement géré. La récupération automatique après une coupure brutale pendant la copie des fichiers reste à ajouter.
-- Les mises à jour sont déclenchées individuellement. Les dépendances explicitement fixées par un autre mod empêchent une mise à jour incompatible.
-- Cette version gère les mods `.jar`. L’import/export de modpacks `.mrpack` et des archives CurseForge, les shaders, les resource packs et la gestion multi-compte ne sont pas encore implémentés.
-- La préparation réelle de Minecraft et des chargeurs est testable sans connexion Microsoft. Les chemins CurseForge nécessitent une clé valide et le lancement d’une partie nécessite un compte et une application autorisés ; ces deux parcours restent à vérifier avec ces accès.
+## License & credits
 
-Références : [API Modrinth](https://docs.modrinth.com/api/), [recherche Modrinth](https://docs.modrinth.com/api/operations/searchprojects/), [Minecraft Launcher Core](https://github.com/Voxelum/x-minecraft-launcher).
+Petal is **source-available under the [Petal Restricted Source License](LICENSE)**.
+Personal non-commercial use, local modifications, and the defined GitHub
+contribution workflow are permitted. **Redistribution and republication,
+including modified versions, require written permission**, subject to the
+GitHub-hosting exception and applicable law described in the license.
+
+Third-party libraries, Minecraft content, and mod artwork remain under their
+owners' terms. See [third-party notices](THIRD_PARTY_NOTICES.md) and
+[Minecraft panorama provenance](src/assets/SOURCES.md).
+
+<p align="center">
+  <sub>Created by <a href="https://github.com/P1kaCat">P1kaCat</a> · Independent Minecraft launcher · Not affiliated with Mojang, Microsoft, Modrinth, or CurseForge</sub>
+</p>

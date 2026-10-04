@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a reproducible problem in Petal.
+title: "[Bug] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the problem and expected behavior. Do not include credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Petal version, Windows version, Minecraft version, and mod loader.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs and screenshots
+      description: Remove personal paths, keys, tokens, and account details before posting.
