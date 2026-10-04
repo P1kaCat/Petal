@@ -1,0 +1,36 @@
+{
+  "name": "petal-launcher",
+  "version": "0.1.1",
+  "description": "Launcher Minecraft avec Modrinth et CurseForge",
+  "private": true,
+  "author": "Petal contributors",
+  "packageManager": "pnpm@11.25.0",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "dist": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "dev.petal.launcher",
+    "productName": "Petal",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  },
+  "dependencies": {
+    "@xmcl/core": "2.15.1",
+    "@xmcl/file-transfer": "1.0.6",
+    "@xmcl/installer": "5.4.0",
+    "msmc": "5.0.5",
+    "undici": "6.0.1"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}

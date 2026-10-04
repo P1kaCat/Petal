@@ -1,0 +1,94 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { createHash, randomUUID } = require('node:crypto');
+const { safeFilename } = require('./store.cjs');
+async function download(file, fetcher = fetch) {
+  const url = new URL(file.url);
+  if (url.protocol !== 'https:' || !['cdn.modrinth.com', 'mediafilez.forgecdn.net', 'edge.forgecdn.net', 'media.forgecdn.net'].includes(url.hostname)) throw new Error('Adresse de téléchargement non autorisée.');
+  safeFilename(file.name);
+  if (!file.hash || !['sha1', 'sha512'].includes(file.algorithm)) throw new Error('Empreinte de fichier absente.');
+  const response = await fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(180000) });
+  if (!response.ok) throw new Error(`Téléchargement impossible : HTTP ${response.status}.`);
+  const chunks = []; let size = 0;
+  for await (const chunk of response.body) { size += chunk.length; if (size > 256 * 1024 * 1024) throw new Error('Fichier trop volumineux (limite 256 Mo).'); chunks.push(chunk); }
+  const buffer = Buffer.concat(chunks);
+  if (createHash(file.algorithm).update(buffer).digest('hex') !== file.hash.toLowerCase()) throw new Error('Empreinte incorrecte : téléchargement rejeté.');
+  return buffer;
+}
+async function planInstall(catalog, profile, source, id) {
+  const resolved = new Map(); const visited = new Set();
+  async function visit(dep) {
+    const visitKey = `${dep.source}:${dep.id || ''}:${dep.versionId || ''}`;
+    if (visited.has(visitKey)) return;
+    visited.add(visitKey);
+    if (visited.size > 100) throw new Error('Trop de dépendances (limite 100).');
+    const mod = await catalog.resolve(dep.source, dep.id, profile, dep.versionId);
+    const key = `${mod.source}:${mod.id}`;
+    const previous = resolved.get(key);
+    if (previous && previous.versionId !== mod.versionId) throw new Error(`Deux versions différentes de ${mod.title} sont requises.`);
+    resolved.set(key, mod);
+    for (const dependency of mod.dependencies) {
+      if (!dependency.id && !dependency.versionId) throw new Error('Dépendance externe : installation manuelle nécessaire.');
+      const installed = profile.mods.find(m => m.source === dependency.source && m.id === dependency.id && m.enabled !== false && (!dependency.versionId || m.versionId === dependency.versionId));
+      if (!installed) await visit(dependency);
+    }
+  }
+  await visit({ source, id });
+  const installed = profile.mods.filter(m => m.enabled !== false && !resolved.has(`${m.source}:${m.id}`));
+  const all = [...installed, ...resolved.values()];
+  for (const mod of all) for (const dependency of mod.dependencies || []) {
+    if (!all.some(m => m.source === dependency.source && (dependency.id ? m.id === dependency.id : m.versionId === dependency.versionId) && (!dependency.versionId || m.versionId === dependency.versionId))) throw new Error(`La version requise par ${mod.title} n’est pas présente. Installation annulée.`);
+  }
+  for (const mod of all) for (const conflict of mod.incompatible || []) {
+    if (all.some(m => m.source === conflict.source && (conflict.id ? m.id === conflict.id : m.versionId === conflict.versionId) && (!conflict.versionId || m.versionId === conflict.versionId))) throw new Error(`Conflit déclaré par ${mod.title}.`);
+  }
+  // Reject file collisions before writing anything, including manually imported jars.
+  const filenames = new Map();
+  for (const m of [...profile.mods.filter(m => !resolved.has(`${m.source}:${m.id}`)), ...resolved.values()]) {
+    const name = safeFilename(m.file.name).toLowerCase();
+    if (filenames.has(name)) throw new Error(`Deux mods utilisent le même fichier : ${name}.`);
+    filenames.set(name, true);
+  }
+  return [...resolved.values()];
+}
+async function installMods(store, catalog, profileId, source, id, notify = () => {}, fetcher = fetch) {
+  const profile = store.profile(profileId);
+  const plan = await planInstall(catalog, profile, source, id);
+  const modsDir = path.join(store.directory(profileId), 'mods');
+  const stage = path.join(store.directory(profileId), `.install-${randomUUID()}`);
+  await fs.mkdir(stage, { recursive: true });
+  const original = structuredClone(profile.mods); const backups = [], written = [];
+  try {
+    for (const mod of plan) {
+      notify(`Téléchargement : ${mod.title}`);
+      const target = path.join(modsDir, safeFilename(mod.file.name));
+      const owner = original.find(m => m.file.name.toLowerCase() === mod.file.name.toLowerCase());
+      try { await fs.access(target); if (!owner || owner.source !== mod.source || owner.id !== mod.id) throw new Error(`Le fichier ${mod.file.name} existe déjà et appartient à un autre mod.`); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+      await fs.writeFile(path.join(stage, mod.file.name), await download(mod.file, fetcher));
+    }
+    for (const mod of plan) {
+      const old = original.find(m => m.source === mod.source && m.id === mod.id);
+      if (old) {
+        const name = safeFilename(old.file.name) + (old.enabled === false ? '.disabled' : '');
+        const from = path.join(modsDir, name), to = path.join(stage, `backup-${backups.length}`);
+        try { await fs.rename(from, to); backups.push({ from, to }); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+      }
+      const target = path.join(modsDir, mod.file.name);
+      await fs.rename(path.join(stage, mod.file.name), target); written.push(target);
+      profile.mods = profile.mods.filter(m => !(m.source === mod.source && m.id === mod.id));
+      profile.mods.push({ ...mod, enabled: true, installedAt: new Date().toISOString() });
+    }
+    await store.save();
+    return { count: plan.length };
+  } catch (error) {
+    for (const file of written) await fs.rm(file, { force: true });
+    for (const b of backups.reverse()) await fs.rename(b.to, b.from);
+    profile.mods = original;
+    throw error;
+  } finally { await fs.rm(stage, { recursive: true, force: true }); }
+}
+function assertNotRequired(profile, mod) {
+  const parent = profile.mods.find(m => m.enabled !== false && !(m.source === mod.source && m.id === mod.id) && m.dependencies?.some(d => d.source === mod.source && (d.id === mod.id || d.versionId === mod.versionId)));
+  if (parent) throw new Error(`${mod.title} est requis par ${parent.title}. Désactive ou retire ce dernier d’abord.`);
+}
+module.exports = { download, planInstall, installMods, assertNotRequired };
