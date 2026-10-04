@@ -3,7 +3,7 @@ async function retryDownload(operation, notify = () => {}, wait = ms => new Prom
     try { return await operation(); }
     catch (e) {
       if (!/Download|Aggregate|Fetch|Request/i.test(e.name) || attempt === 2) throw e;
-      notify(`Reprise des téléchargements interrompus (${attempt + 2}/3)…`);
+      notify(`Retrying interrupted downloads (${attempt + 2}/3)…`);
       await wait(1000 * (attempt + 1));
     }
   }

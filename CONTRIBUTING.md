@@ -21,8 +21,8 @@ and independent project releases are not part of the contribution process.
 6. Open a pull request against `main` in the official repository.
 
 Use English for documentation, issues, pull requests, and commit messages.
-The current application interface is French; preserve its language unless
-your proposal explicitly introduces localization.
+The application interface is English; keep new user-facing text in English
+unless your proposal explicitly introduces localization.
 
 ## Contribution rights
 

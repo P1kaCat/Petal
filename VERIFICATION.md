@@ -42,3 +42,17 @@ The banner uses the original cherry-grove title panorama from Minecraft Java
 generated illustration was removed from application assets. Layout and text
 legibility were inspected in the actual Electron UI, and all four UI smoke
 checks passed with this banner.
+
+## Version 0.1.2 English interface
+
+All application-owned labels, accessible names, placeholders, notifications,
+validation errors, progress messages, and file-picker titles now use English.
+Number formatting uses the English locale. User-entered profile names and
+third-party catalog content are preserved.
+
+On October 5, 2026, all 13 automated tests passed with the translated error
+messages. The actual Electron UI smoke checks passed for profile creation,
+real Sodium installation, persistent settings with secure storage, and
+rejection of an unknown IPC method. Discover, Profiles, and Settings were
+visually inspected. The README screenshots were recaptured from the English
+application using isolated data in `artifacts/smoke-english`.

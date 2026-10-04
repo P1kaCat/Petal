@@ -1,41 +1,41 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.modrinth.com https://media.forgecdn.net https://mediafilez.forgecdn.net https://edge.forgecdn.net; connect-src 'none'; object-src 'none'; base-uri 'none'">
-  <title>Petal — Minecraft, à ta façon</title>
+  <title>Petal — Minecraft, your way</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="banner.css">
 </head>
 <body>
   <aside class="sidebar">
     <a class="brand" href="#"><span class="flower">✿</span> petal<span class="alpha">ALPHA</span></a>
-    <div class="workspace-label">TON ESPACE MINECRAFT</div>
-    <nav aria-label="Navigation principale">
-      <button class="nav active" data-view="discover"><span>◈</span> Découvrir</button>
-      <button class="nav" data-view="profiles"><span>▦</span> Mes profils <b id="profile-count">0</b></button>
-      <button class="nav" data-view="settings"><span>⚙</span> Réglages</button>
+    <div class="workspace-label">YOUR MINECRAFT SPACE</div>
+    <nav aria-label="Main navigation">
+      <button class="nav active" data-view="discover"><span>◈</span> Discover</button>
+      <button class="nav" data-view="profiles"><span>▦</span> My profiles <b id="profile-count">0</b></button>
+      <button class="nav" data-view="settings"><span>⚙</span> Settings</button>
     </nav>
     <div class="sidebar-divider"></div>
-    <div class="workspace-label profile-label">PROFIL ACTIF <button id="sidebar-create" aria-label="Créer un profil">＋</button></div>
+    <div class="workspace-label profile-label">ACTIVE PROFILE <button id="sidebar-create" aria-label="Create a profile">＋</button></div>
     <div id="sidebar-profiles"></div>
-    <div class="sidebar-bottom"><span class="status-dot"></span> Deux sources. Un seul univers.<small>Petal Launcher · version 0.1.1</small></div>
+    <div class="sidebar-bottom"><span class="status-dot"></span> Two sources. One universe.<small>Petal Launcher · version 0.1.2</small></div>
   </aside>
   <div class="shell">
-    <header class="topbar"><div><span class="crumb">Petal</span><span class="slash">/</span><span id="breadcrumb">Découvrir</span></div><button id="account-button" class="account"><span class="avatar">◡</span><span id="account-name">Connecter Microsoft</span><span>↗</span></button></header>
+    <header class="topbar"><div><span class="crumb">Petal</span><span class="slash">/</span><span id="breadcrumb">Discover</span></div><button id="account-button" class="account"><span class="avatar">◡</span><span id="account-name">Connect Microsoft</span><span>↗</span></button></header>
     <main id="content"></main>
-    <footer class="statusbar"><span id="status-text">Prêt à explorer.</span><span>MODRINTH <i class="mr-dot"></i> <span id="cf-status">CURSEFORGE · clé requise</span></span></footer>
+    <footer class="statusbar"><span id="status-text">Ready to explore.</span><span>MODRINTH <i class="mr-dot"></i> <span id="cf-status">CURSEFORGE · key required</span></span></footer>
   </div>
-  <div id="notice" class="notice" role="status" hidden><span id="notice-text"></span><button id="dismiss-notice" aria-label="Fermer le message">×</button></div>
+  <div id="notice" class="notice" role="status" hidden><span id="notice-text"></span><button id="dismiss-notice" aria-label="Dismiss message">×</button></div>
   <dialog id="create-dialog">
     <form id="create-form">
-      <div class="dialog-top"><span class="eyebrow">UN NOUVEAU DÉPART</span><button type="button" id="close-dialog" class="icon-button" aria-label="Fermer">×</button></div>
-      <h2>Crée ton univers.</h2><p>Un profil, ses mods, ses sauvegardes. Tout reste ensemble.</p>
-      <label>Nom du profil<input id="profile-name" required maxlength="60" placeholder="Mon aventure" autocomplete="off"></label>
-      <div class="form-row"><label>Version Minecraft<input id="profile-version" list="minecraft-versions" required pattern="[0-9]+\.[0-9]+(\.[0-9]+)?" value="1.21.1"><datalist id="minecraft-versions"></datalist></label><label>Chargeur<select id="profile-loader"><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="neoforge">NeoForge</option></select></label></div>
+      <div class="dialog-top"><span class="eyebrow">A FRESH START</span><button type="button" id="close-dialog" class="icon-button" aria-label="Close">×</button></div>
+      <h2>Create your world.</h2><p>One profile, its mods, its saves. Everything stays together.</p>
+      <label>Profile name<input id="profile-name" required maxlength="60" placeholder="My adventure" autocomplete="off"></label>
+      <div class="form-row"><label>Minecraft version<input id="profile-version" list="minecraft-versions" required pattern="[0-9]+\.[0-9]+(\.[0-9]+)?" value="1.21.1"><datalist id="minecraft-versions"></datalist></label><label>Mod loader<select id="profile-loader"><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="neoforge">NeoForge</option></select></label></div>
       <p id="dialog-error" class="error-text" role="alert"></p>
-      <button type="submit" class="primary wide">Créer le profil <span>＋</span></button>
+      <button type="submit" class="primary wide">Create profile <span>＋</span></button>
     </form>
   </dialog>
   <script src="renderer.js"></script>

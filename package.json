@@ -1,6 +1,6 @@
 {
   "name": "petal-launcher",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Minecraft Java launcher bringing Modrinth and CurseForge together",
   "private": true,
   "author": "P1kaCat",

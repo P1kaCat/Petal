@@ -2,8 +2,8 @@ const MR = 'https://api.modrinth.com/v2';
 const CF = 'https://api.curseforge.com/v1';
 const loaders = { forge: 1, fabric: 4, neoforge: 6 };
 async function json(url, key, fetcher = fetch) {
-  const response = await fetcher(url, { headers: { 'User-Agent': 'PetalLauncher/0.1.1', Accept: 'application/json', ...(key ? { 'x-api-key': key } : {}) }, signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error(`API : HTTP ${response.status}${response.status === 403 ? ' — vérifie la clé et les autorisations.' : ''}`);
+  const response = await fetcher(url, { headers: { 'User-Agent': 'PetalLauncher/0.1.2', Accept: 'application/json', ...(key ? { 'x-api-key': key } : {}) }, signal: AbortSignal.timeout(30000) });
+  if (!response.ok) throw new Error(`API: HTTP ${response.status}${response.status === 403 ? ' — check your key and permissions.' : ''}`);
   return response.json();
 }
 class Catalog {
@@ -11,11 +11,11 @@ class Catalog {
   mr(path) { return json(`${MR}${path}`, null, this.fetcher); }
   cf(path) {
     const key = this.getKey();
-    if (!key) throw new Error('Ajoute ta clé API CurseForge dans les réglages pour activer ce catalogue.');
+    if (!key) throw new Error('Add your CurseForge API key in settings to enable this catalog.');
     return json(`${CF}${path}`, key, this.fetcher);
   }
   async search({ query = '', source = 'all', version, loader, offset = 0 }) {
-    if (!['all', 'modrinth', 'curseforge'].includes(source)) throw new Error('Catalogue invalide.');
+    if (!['all', 'modrinth', 'curseforge'].includes(source)) throw new Error('Invalid catalog.');
     offset = Math.max(0, Math.floor(Number(offset) || 0));
     const providers = source === 'all' ? ['modrinth', 'curseforge'] : [source];
     const results = await Promise.allSettled(providers.map(async provider => {
@@ -47,22 +47,22 @@ class Catalog {
     if (source === 'modrinth') {
       const versions = versionId ? [await this.mr(`/version/${encodeURIComponent(versionId)}`)] : await this.mr(`/project/${encodeURIComponent(id)}/version?${new URLSearchParams({ game_versions: JSON.stringify([profile.version]), loaders: JSON.stringify([profile.loader]) })}`);
       const v = versions.find(v => v.game_versions.includes(profile.version) && v.loaders.includes(profile.loader));
-      if (!v) throw new Error(`Aucune version compatible de ${id} avec ${profile.version} / ${profile.loader}.`);
+      if (!v) throw new Error(`No compatible version of ${id} for ${profile.version} / ${profile.loader}.`);
       const project = await this.mr(`/project/${encodeURIComponent(v.project_id)}`);
       const f = v.files.find(f => f.primary) || v.files[0];
-      if (!f) throw new Error('Cette version ne contient aucun fichier.');
+      if (!f) throw new Error('This version contains no files.');
       return { source, id: v.project_id, title: project.title, versionId: v.id, versionName: v.version_number, file: { name: f.filename, url: f.url, hash: f.hashes.sha512 || f.hashes.sha1, algorithm: f.hashes.sha512 ? 'sha512' : 'sha1' }, dependencies: v.dependencies.filter(d => d.dependency_type === 'required').map(d => ({ source, id: d.project_id, versionId: d.version_id })), incompatible: v.dependencies.filter(d => d.dependency_type === 'incompatible').map(d => ({ source, id: d.project_id, versionId: d.version_id })) };
     }
-    if (source !== 'curseforge') throw new Error('Source inconnue.');
+    if (source !== 'curseforge') throw new Error('Unknown source.');
     const project = (await this.cf(`/mods/${encodeURIComponent(id)}`)).data;
     const params = new URLSearchParams({ gameVersion: profile.version, modLoaderType: String(loaders[profile.loader]), pageSize: '50' });
     const files = versionId ? [(await this.cf(`/mods/${id}/files/${versionId}`)).data] : (await this.cf(`/mods/${id}/files?${params}`)).data;
     const label = { fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge' }[profile.loader];
     const f = files.filter(f => f.gameVersions.includes(profile.version) && f.gameVersions.includes(label) && f.isAvailable).sort((a, b) => Date.parse(b.fileDate) - Date.parse(a.fileDate))[0];
-    if (!f) throw new Error(`Aucun fichier compatible pour ${project.name}.`);
-    if (!f.downloadUrl) throw new Error(`${project.name} ne fournit pas de téléchargement via l’API. Ouvre sa page pour télécharger le fichier manuellement.`);
+    if (!f) throw new Error(`No compatible file for ${project.name}.`);
+    if (!f.downloadUrl) throw new Error(`${project.name} does not provide an API download. Open its project page to download the file manually.`);
     const hash = f.hashes.find(h => h.algo === 1);
-    if (!hash) throw new Error('Empreinte SHA-1 absente : installation refusée.');
+    if (!hash) throw new Error('Missing SHA-1 checksum: installation refused.');
     return { source, id: String(project.id), title: project.name, versionId: String(f.id), versionName: f.displayName, file: { name: f.fileName, url: f.downloadUrl, hash: hash.value, algorithm: 'sha1' }, dependencies: f.dependencies.filter(d => d.relationType === 3).map(d => ({ source, id: String(d.modId) })), incompatible: f.dependencies.filter(d => d.relationType === 5).map(d => ({ source, id: String(d.modId) })) };
   }
 }

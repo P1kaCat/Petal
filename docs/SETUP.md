@@ -15,33 +15,33 @@ pnpm start
 
 Petal uses Electron with HTML, CSS, and JavaScript, and the `@xmcl` libraries
 for Minecraft installation and launch preparation. No UI compilation is needed.
-The app currently uses French interface labels.
+The app interface uses English labels.
 
 ## Create your first instance
 
-1. Choose **Nouveau profil**, a Minecraft version, and Fabric, Forge, or NeoForge.
-2. Search in **Découvrir**. The active profile filters by game version and loader.
-3. Choose **Installer** to install a mod and required dependencies from its source.
-4. In **Mes profils**, choose **Installer le jeu** to download game files, Java,
+1. Choose **New profile**, a Minecraft version, and Fabric, Forge, or NeoForge.
+2. Search in **Discover**. The active profile filters by game version and loader.
+3. Choose **Install** to install a mod and required dependencies from its source.
+4. In **My profiles**, choose **Install game** to download game files, Java,
    and the loader. The first preparation may download more than 1 GB.
-5. Configure Microsoft authentication in **Réglages**, then choose **Jouer**.
+5. Configure Microsoft authentication in **Settings**, then choose **Play**.
 
 Saves, mods, and configuration are separated per profile. You can enable,
 disable, remove, and update individual mods. Removed files are kept in the
-instance's `removed` folder. **Dossier** opens the instance, including game logs.
+instance's `removed` folder. **Folder** opens the instance, including game logs.
 
 ## CurseForge
 
 Apply for your own authorized key through the
 [official process](https://support.curseforge.com/support/solutions/articles/9000208346-about-the-curseforge-api-and-how-to-apply-for-a-key),
 and review the API terms for your intended use. Enter the key under
-**Réglages → CurseForge**. It is encrypted using Windows secure storage and is
+**Settings → CurseForge**. It is encrypted using Windows secure storage and is
 not exposed back to the renderer. A blank field preserves an existing key;
 the removal checkbox deletes it.
 
 Without a key, Modrinth remains available. A file without an API download URL
 is not downloaded automatically. Use its official project page, obtain the
-file if permitted, and use **Importer un .jar**. Manual imports require you to
+file if permitted, and use **Import a .jar**. Manual imports require you to
 check compatibility and dependencies.
 
 Authenticated CurseForge downloads have not been verified. Before wider
@@ -85,7 +85,7 @@ connection pool and three retry attempts; retries reuse verified cache files.
 pnpm dist
 ```
 
-The unsigned development build is written to `dist/Petal 0.1.1.exe`. It runs
+The unsigned development build is written to `dist/Petal 0.1.2.exe`. It runs
 without Node.js installed. Generated builds are excluded from Git.
 
 ## Checks

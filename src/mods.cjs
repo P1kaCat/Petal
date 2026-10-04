@@ -4,15 +4,15 @@ const { createHash, randomUUID } = require('node:crypto');
 const { safeFilename } = require('./store.cjs');
 async function download(file, fetcher = fetch) {
   const url = new URL(file.url);
-  if (url.protocol !== 'https:' || !['cdn.modrinth.com', 'mediafilez.forgecdn.net', 'edge.forgecdn.net', 'media.forgecdn.net'].includes(url.hostname)) throw new Error('Adresse de téléchargement non autorisée.');
+  if (url.protocol !== 'https:' || !['cdn.modrinth.com', 'mediafilez.forgecdn.net', 'edge.forgecdn.net', 'media.forgecdn.net'].includes(url.hostname)) throw new Error('Download URL not allowed.');
   safeFilename(file.name);
-  if (!file.hash || !['sha1', 'sha512'].includes(file.algorithm)) throw new Error('Empreinte de fichier absente.');
+  if (!file.hash || !['sha1', 'sha512'].includes(file.algorithm)) throw new Error('Missing file checksum.');
   const response = await fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(180000) });
-  if (!response.ok) throw new Error(`Téléchargement impossible : HTTP ${response.status}.`);
+  if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}.`);
   const chunks = []; let size = 0;
-  for await (const chunk of response.body) { size += chunk.length; if (size > 256 * 1024 * 1024) throw new Error('Fichier trop volumineux (limite 256 Mo).'); chunks.push(chunk); }
+  for await (const chunk of response.body) { size += chunk.length; if (size > 256 * 1024 * 1024) throw new Error('File too large (256 MB limit).'); chunks.push(chunk); }
   const buffer = Buffer.concat(chunks);
-  if (createHash(file.algorithm).update(buffer).digest('hex') !== file.hash.toLowerCase()) throw new Error('Empreinte incorrecte : téléchargement rejeté.');
+  if (createHash(file.algorithm).update(buffer).digest('hex') !== file.hash.toLowerCase()) throw new Error('Checksum mismatch: download rejected.');
   return buffer;
 }
 async function planInstall(catalog, profile, source, id) {
@@ -21,14 +21,14 @@ async function planInstall(catalog, profile, source, id) {
     const visitKey = `${dep.source}:${dep.id || ''}:${dep.versionId || ''}`;
     if (visited.has(visitKey)) return;
     visited.add(visitKey);
-    if (visited.size > 100) throw new Error('Trop de dépendances (limite 100).');
+    if (visited.size > 100) throw new Error('Too many dependencies (100 limit).');
     const mod = await catalog.resolve(dep.source, dep.id, profile, dep.versionId);
     const key = `${mod.source}:${mod.id}`;
     const previous = resolved.get(key);
-    if (previous && previous.versionId !== mod.versionId) throw new Error(`Deux versions différentes de ${mod.title} sont requises.`);
+    if (previous && previous.versionId !== mod.versionId) throw new Error(`Two different versions of ${mod.title} are required.`);
     resolved.set(key, mod);
     for (const dependency of mod.dependencies) {
-      if (!dependency.id && !dependency.versionId) throw new Error('Dépendance externe : installation manuelle nécessaire.');
+      if (!dependency.id && !dependency.versionId) throw new Error('External dependency: manual installation required.');
       const installed = profile.mods.find(m => m.source === dependency.source && m.id === dependency.id && m.enabled !== false && (!dependency.versionId || m.versionId === dependency.versionId));
       if (!installed) await visit(dependency);
     }
@@ -37,16 +37,16 @@ async function planInstall(catalog, profile, source, id) {
   const installed = profile.mods.filter(m => m.enabled !== false && !resolved.has(`${m.source}:${m.id}`));
   const all = [...installed, ...resolved.values()];
   for (const mod of all) for (const dependency of mod.dependencies || []) {
-    if (!all.some(m => m.source === dependency.source && (dependency.id ? m.id === dependency.id : m.versionId === dependency.versionId) && (!dependency.versionId || m.versionId === dependency.versionId))) throw new Error(`La version requise par ${mod.title} n’est pas présente. Installation annulée.`);
+    if (!all.some(m => m.source === dependency.source && (dependency.id ? m.id === dependency.id : m.versionId === dependency.versionId) && (!dependency.versionId || m.versionId === dependency.versionId))) throw new Error(`The version required by ${mod.title} is missing. Installation cancelled.`);
   }
   for (const mod of all) for (const conflict of mod.incompatible || []) {
-    if (all.some(m => m.source === conflict.source && (conflict.id ? m.id === conflict.id : m.versionId === conflict.versionId) && (!conflict.versionId || m.versionId === conflict.versionId))) throw new Error(`Conflit déclaré par ${mod.title}.`);
+    if (all.some(m => m.source === conflict.source && (conflict.id ? m.id === conflict.id : m.versionId === conflict.versionId) && (!conflict.versionId || m.versionId === conflict.versionId))) throw new Error(`Conflict declared by ${mod.title}.`);
   }
   // Reject file collisions before writing anything, including manually imported jars.
   const filenames = new Map();
   for (const m of [...profile.mods.filter(m => !resolved.has(`${m.source}:${m.id}`)), ...resolved.values()]) {
     const name = safeFilename(m.file.name).toLowerCase();
-    if (filenames.has(name)) throw new Error(`Deux mods utilisent le même fichier : ${name}.`);
+    if (filenames.has(name)) throw new Error(`Two mods use the same filename: ${name}.`);
     filenames.set(name, true);
   }
   return [...resolved.values()];
@@ -60,10 +60,10 @@ async function installMods(store, catalog, profileId, source, id, notify = () =>
   const original = structuredClone(profile.mods); const backups = [], written = [];
   try {
     for (const mod of plan) {
-      notify(`Téléchargement : ${mod.title}`);
+      notify(`Downloading: ${mod.title}`);
       const target = path.join(modsDir, safeFilename(mod.file.name));
       const owner = original.find(m => m.file.name.toLowerCase() === mod.file.name.toLowerCase());
-      try { await fs.access(target); if (!owner || owner.source !== mod.source || owner.id !== mod.id) throw new Error(`Le fichier ${mod.file.name} existe déjà et appartient à un autre mod.`); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+      try { await fs.access(target); if (!owner || owner.source !== mod.source || owner.id !== mod.id) throw new Error(`The file ${mod.file.name} already exists and belongs to another mod.`); } catch (e) { if (e.code !== 'ENOENT') throw e; }
       await fs.writeFile(path.join(stage, mod.file.name), await download(mod.file, fetcher));
     }
     for (const mod of plan) {
@@ -89,6 +89,6 @@ async function installMods(store, catalog, profileId, source, id, notify = () =>
 }
 function assertNotRequired(profile, mod) {
   const parent = profile.mods.find(m => m.enabled !== false && !(m.source === mod.source && m.id === mod.id) && m.dependencies?.some(d => d.source === mod.source && (d.id === mod.id || d.versionId === mod.versionId)));
-  if (parent) throw new Error(`${mod.title} est requis par ${parent.title}. Désactive ou retire ce dernier d’abord.`);
+  if (parent) throw new Error(`${mod.title} is required by ${parent.title}. Disable or remove that mod first.`);
 }
 module.exports = { download, planInstall, installMods, assertNotRequired };

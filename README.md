@@ -31,10 +31,9 @@ while keeping each platform's projects and identifiers distinct. Create a
 profile, choose your Minecraft version and mod loader, and find mods that fit.
 
 The Windows alpha uses a dark interface, a violet flower identity, and a real
-Minecraft cherry-grove panorama. **The current app interface is in French;
-this repository's documentation is in English.**
+Minecraft cherry-grove panorama. **The app interface and repository documentation are in English.**
 
-> **Development preview · v0.1.1**
+> **Development preview · v0.1.2**
 > Modrinth installation and Minecraft preparation have been exercised with real
 > downloads. CurseForge requires an authorized API key. Microsoft sign-in needs
 > an approved application registration. These two authenticated paths still need
@@ -94,7 +93,7 @@ To create the Windows portable executable:
 pnpm dist
 ```
 
-The output is `dist/Petal 0.1.1.exe`. Compiled builds and installed dependencies
+The output is `dist/Petal 0.1.2.exe`. Compiled builds and installed dependencies
 are not checked into this repository. This development executable is unsigned.
 
 See the [setup guide](docs/SETUP.md) for CurseForge configuration, Microsoft

@@ -49,20 +49,20 @@ test('required dependencies resolve recursively and cycles terminate', async () 
 });
 test('conflicting pinned dependencies fail before files are written', async () => {
   const a = mod('a', [{ source: 'modrinth', id: 'b', versionId: 'v1' }, { source: 'modrinth', id: 'b', versionId: 'v2' }]);
-  await assert.rejects(planInstall({ resolve: async (_, id, p, v) => id === 'a' ? a : mod('b', [], v) }, profile(), 'modrinth', 'a'), /Deux versions/);
+  await assert.rejects(planInstall({ resolve: async (_, id, p, v) => id === 'a' ? a : mod('b', [], v) }, profile(), 'modrinth', 'a'), /Two different versions/);
 });
 test('updates cannot break installed mods with pinned dependencies', async () => {
   const p = profile(); p.mods = [mod('parent', [{ source: 'modrinth', id: 'b', versionId: 'v1' }]), mod('b')];
-  await assert.rejects(planInstall({ resolve: async () => mod('b', [], 'v2') }, p, 'modrinth', 'b'), /version requise/);
+  await assert.rejects(planInstall({ resolve: async () => mod('b', [], 'v2') }, p, 'modrinth', 'b'), /version required/);
 });
 test('incompatible projects and file collisions are rejected', async () => {
   const p = profile(); p.mods = [mod('b')]; const a = mod('a'); a.incompatible = [{ source: 'modrinth', id: 'b' }];
-  await assert.rejects(planInstall({ resolve: async () => a }, p, 'modrinth', 'a'), /Conflit/);
-  a.incompatible = []; a.file.name = 'b.jar'; await assert.rejects(planInstall({ resolve: async () => a }, p, 'modrinth', 'a'), /même fichier/);
+  await assert.rejects(planInstall({ resolve: async () => a }, p, 'modrinth', 'a'), /Conflict/);
+  a.incompatible = []; a.file.name = 'b.jar'; await assert.rejects(planInstall({ resolve: async () => a }, p, 'modrinth', 'a'), /same filename/);
 });
 test('checksum mismatches and unexpected hosts never install files', async () => {
-  await assert.rejects(download(mod('a').file, async () => new Response('corrupted')), /Empreinte incorrecte/);
-  await assert.rejects(download({ ...mod('a').file, url: 'https://evil.example/a.jar' }, fetchFile), /non autorisée/);
+  await assert.rejects(download(mod('a').file, async () => new Response('corrupted')), /Checksum mismatch/);
+  await assert.rejects(download({ ...mod('a').file, url: 'https://evil.example/a.jar' }, fetchFile), /not allowed/);
 });
 test('dependency download failure leaves the complete prior installation intact', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'petal-rollback-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
@@ -81,7 +81,7 @@ test('install writes verified mods and persists the manifest', async t => {
   assert.equal((await installMods(s, c, p.id, 'modrinth', 'a', () => {}, fetchFile)).count, 2);
   assert.equal(await fs.readFile(path.join(s.directory(p.id), 'mods/b.jar'), 'utf8'), 'b');
   const reloaded = new Store(root); await reloaded.load(); assert.equal(reloaded.profile(p.id).mods.length, 2);
-  assert.throws(() => assertNotRequired(p, p.mods.find(m => m.id === 'b')), /requis par/);
+  assert.throws(() => assertNotRequired(p, p.mods.find(m => m.id === 'b')), /required by/);
 });
 test('NeoForge version selection compares numbers and matches the Minecraft patch', () => {
   assert.equal(selectNeoForge(['21.1.9', '21.1.100', '21.0.200', '21.1.200-beta'], '1.21.1'), '21.1.100');
