@@ -13,7 +13,7 @@ pnpm install --frozen-lockfile
 pnpm api
 ```
 
-Open **http://127.0.0.1:4318/** for the creator portal. The API listens only on
+Open **http://127.0.0.1:4318/** for the public website and **/dashboard** for the creator portal. The API listens only on
 loopback by default. No hosting subscription is needed for local development.
 
 On first startup, the server generates a random administrator token in

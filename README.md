@@ -41,6 +41,14 @@ Minecraft cherry-grove panorama. **The app interface and repository documentatio
 
 ## A look inside
 
+### A home for creators
+
+The local website provides public discovery, project pages, author profiles and
+a separate creator dashboard. Approved Petal releases can be downloaded on the
+website or installed through the launcher.
+
+![Petal website with authentic Minecraft imagery](docs/media/website.jpg)
+
 ### Discover your next adventure
 
 Search by Minecraft version and loader, choose a catalog, and keep the selected

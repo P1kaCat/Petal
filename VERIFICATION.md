@@ -103,3 +103,13 @@ loader results are covered by race regression tests. The creator API accepts
 official snapshot IDs and Quilt descriptors. CurseForge edge CDN requests attach
 the key only to the exact HTTPS edge host, with redirects refused; an authorized
 CurseForge end-to-end download still requires a real approved API key.
+
+## Public web platform
+
+The 39-test suite passed after adopting transactional migrations and public
+discovery/project/author pages. Tests verify preview data preservation, migration
+rollback, unpublished content privacy, escaped script payloads and static-file
+allowlisting. The public website was inspected through the actual browser at
+390px and 1440px widths, with no horizontal document overflow. Empty-result
+search and separate creator dashboard entry points were verified. Screenshots
+show the real empty local catalog, not seeded production records.

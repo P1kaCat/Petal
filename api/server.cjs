@@ -8,6 +8,7 @@ const { Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const { openDatabase } = require('./db.cjs');
 const { fail, json, body } = require('./http.cjs');
+const { projectPage, authorPage } = require('./public-pages.cjs');
 const yauzl = require('yauzl');
 const { safeFilename } = require('../src/store.cjs');
 const { MinecraftMetadata, validVersionId } = require('../src/minecraft-metadata.cjs');
@@ -116,10 +117,12 @@ async function createPetalServer(options = {}) {
       if (req.headers.origin && req.headers.origin !== base && !['GET', 'HEAD'].includes(req.method)) fail(403, 'Cross-origin writes are not allowed.');
       if (req.method === 'GET' && route === '/health') return json(res, 200, { status: 'ok', service: 'Petal API', version: '1' });
       if (req.method === 'GET' && route === '/v1/game/versions') return json(res,200,await metadata.versions());
-      if (req.method === 'GET' && ['/', '/portal.js', '/portal.css'].includes(route)) {
-        const filename = route === '/' ? 'index.html' : route.slice(1);
-        const data = await fs.readFile(path.join(__dirname, 'public', filename));
-        res.writeHead(200, { 'Content-Type': { 'index.html': 'text/html; charset=utf-8', 'portal.js': 'text/javascript; charset=utf-8', 'portal.css': 'text/css; charset=utf-8' }[filename] }); return res.end(data);
+      const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};
+      if (req.method === 'GET' && Object.hasOwn(assets,route)) {
+        const filename=assets[route];
+        const data=await fs.readFile(route==='/minecraft-panorama.png'?path.join(__dirname,filename):path.join(__dirname,'public',filename));
+        const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'}[path.extname(filename)];
+        res.writeHead(200,{'Content-Type':mime});return res.end(data);
       }
       if (req.method === 'POST' && ['/v1/auth/register', '/v1/auth/login'].includes(route)) {
         const data = await body(req), username = text(data.username, 'username', 40).toLowerCase();
@@ -163,6 +166,8 @@ async function createPetalServer(options = {}) {
         return json(res, 201, projectView(db.prepare('SELECT * FROM projects WHERE id=?').get(id)));
       }
       if (req.method === 'GET' && route === '/v1/search') {
+        const sort=url.searchParams.get('sort')||'newest';
+        if(!['newest','downloads'].includes(sort))fail(400,'Invalid search sort.');
         const q = (url.searchParams.get('q') || '').slice(0, 200).replace(/[\\%_]/g, '\\$&');
         const offset = Math.min(100000, Math.max(0, Number(url.searchParams.get('offset')) || 0));
         const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 20));
@@ -174,7 +179,8 @@ async function createPetalServer(options = {}) {
         }
         const where = `WHERE (p.title LIKE ? ESCAPE '\\' OR p.description LIKE ? ESCAPE '\\') AND EXISTS(SELECT 1 FROM versions v WHERE ${filters})`;
         const total = db.prepare(`SELECT COUNT(*) AS n FROM projects p ${where}`).get(...params).n;
-        const projects = db.prepare(`SELECT p.* FROM projects p ${where} ORDER BY p.createdAt DESC, p.id LIMIT ? OFFSET ?`).all(...params, pageSize, offset).map(projectView);
+        const order=sort==='downloads'?"(SELECT COALESCE(SUM(v2.downloads),0) FROM versions v2 WHERE v2.projectId=p.id AND v2.status='published') DESC,p.createdAt DESC,p.id":"p.createdAt DESC,p.id";
+        const projects = db.prepare(`SELECT p.* FROM projects p ${where} ORDER BY ${order} LIMIT ? OFFSET ?`).all(...params, pageSize, offset).map(projectView);
         return json(res, 200, { projects, total, offset, hasMore: total > offset + pageSize });
       }
       const projectRoute = /^\/v1\/projects\/([a-f0-9-]{36})(?:\/(versions))?$/.exec(route);
@@ -283,7 +289,18 @@ async function createPetalServer(options = {}) {
         if (!p) fail(404, 'Project not found.');
         const project = projectView(p), versions = db.prepare("SELECT * FROM versions WHERE projectId=? AND status='published' ORDER BY createdAt DESC").all(p.id).map(versionView);
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        return res.end(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/portal.css"><title>${escapeHTML(p.title)} · Petal</title><main><a href="/">✿ Petal</a><h1>${escapeHTML(p.title)}</h1><p>By ${escapeHTML(project.author)} · License: ${escapeHTML(p.license)}</p><p>${escapeHTML(p.description)}</p>${p.sourceUrl ? `<a href="${escapeHTML(p.sourceUrl)}">Source / author website ↗</a>` : ''}<h2>Published versions</h2>${versions.map(v => `<article><h3>${escapeHTML(v.name)}</h3><p>Minecraft ${escapeHTML(v.gameVersions.join(', '))} · ${escapeHTML(v.loaders.join(', '))}</p><a href="${escapeHTML(v.file.url)}">Download ${escapeHTML(v.file.name)}</a></article>`).join('')}</main></html>`);
+        return res.end(projectPage(project,versions));
+      }
+      const userPage=/^\/users\/([a-z0-9_-]{3,40})$/.exec(route);
+      if(req.method==='GET'&&userPage){
+        const user=db.prepare('SELECT id,username FROM users WHERE username=?').get(userPage[1]);
+        if(!user)fail(404,'Author not found.');
+        const where="ownerId=? AND EXISTS(SELECT 1 FROM versions v WHERE v.projectId=projects.id AND v.status='published')";
+        const total=db.prepare(`SELECT COUNT(*) AS n FROM projects WHERE ${where}`).get(user.id).n;
+        const offset=Number(url.searchParams.get('offset')||0);
+        if(!Number.isInteger(offset)||offset<0||offset>100000)fail(400,'Invalid pagination.');
+        const projects=db.prepare(`SELECT * FROM projects WHERE ${where} ORDER BY createdAt DESC,id LIMIT 20 OFFSET ?`).all(user.id,offset).map(projectView);
+        res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return res.end(authorPage(user.username,projects,total));
       }
       fail(404, 'Endpoint not found.');
     } catch (error) {
