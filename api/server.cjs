@@ -22,6 +22,7 @@ const {createModeration}=require('./moderation.cjs');
 const {createProjectRoutes}=require('./routes/projects.cjs');
 const {createTokens}=require('./tokens.cjs');
 const {page}=require('./pagination.cjs');
+const {createReadiness}=require('./operations.cjs');
 const text = (value, label, max = 200) => {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail(400, `Invalid ${label}.`);
   return value.trim();
@@ -76,6 +77,7 @@ async function createPetalServer(options = {}) {
   const reviewPolicy=options.reviewPolicy||process.env.PETAL_REVIEW_POLICY||(publicMode?'scanner':'local-manual');
   if(!['scanner','manual','local-manual'].includes(reviewPolicy)||publicMode&&reviewPolicy==='local-manual')throw new Error('Invalid review policy.');
   const projectRoutes=createProjectRoutes({db,root,auth,projects,storage,moderation:moderationService});
+  const readiness=createReadiness({db,root,dbCheck:options.dbCheck,publicMode,mail,scanner,reviewPolicy});
   const rates = new Map();
   const sweep = setInterval(() => {
     const now = Date.now();
@@ -119,6 +121,7 @@ async function createPetalServer(options = {}) {
       if(await accountRoutes(req,res,route,url))return;
       if(await projectRoutes(req,res,route,url))return;
       if (req.method === 'GET' && route === '/health') return json(res, 200, { status: 'ok', service: 'Petal API', version: '1' });
+      if(req.method==='GET'&&route==='/ready'){const result=await readiness();return json(res,result.ready?200:503,{status:result.status,checks:result.checks});}
       if(req.method==='GET'&&route==='/openapi.yaml'){res.writeHead(200,{'Content-Type':'application/yaml; charset=utf-8'});return res.end(await fs.readFile(path.join(__dirname,'openapi.yaml')));}
       if (req.method === 'GET' && route === '/v1/game/versions') return json(res,200,await metadata.versions());
       const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/account':'account.html','/api':'api-docs.html','/account.js':'account.js','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/project.js':'project.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};

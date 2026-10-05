@@ -151,3 +151,11 @@ pnpm dlx --package=@redocly/cli redocly lint api/openapi.yaml. Existing API test
 again downloaded an approved local fixture through the actual launcher catalog
 and verified its SHA-512. No approved CurseForge key was available for a real
 CurseForge file download.
+
+## Backup and recovery checkpoint
+
+A populated live SQLite snapshot was restored into a separate temporary directory.
+Normal scrypt login and encrypted-secret TOTP login succeeded. Published download
+bytes and SHA-512 headers were identical; pending downloads stayed private.
+Populated targets and altered backup bytes were refused. Readiness returned 503
+for blocked storage and a database outage without private details.
