@@ -6,13 +6,13 @@ const { randomUUID, randomBytes, createHash, timingSafeEqual, scrypt } = require
 const { promisify } = require('node:util');
 const { Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
-const { DatabaseSync } = require('node:sqlite');
+const { openDatabase } = require('./db.cjs');
+const { fail, json, body } = require('./http.cjs');
 const yauzl = require('yauzl');
 const { safeFilename } = require('../src/store.cjs');
 const { MinecraftMetadata, validVersionId } = require('../src/minecraft-metadata.cjs');
 const derive = promisify(scrypt);
 const digest = value => createHash('sha256').update(value).digest('hex');
-const fail = (status, message) => { throw Object.assign(new Error(message), { status }); };
 const text = (value, label, max = 200) => {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail(400, `Invalid ${label}.`);
   return value.trim();
@@ -56,14 +56,7 @@ async function createPetalServer(options = {}) {
     }
   }
   if (adminToken.length < 32) throw new Error('PETAL_ADMIN_TOKEN must contain at least 32 characters.');
-  const db = new DatabaseSync(path.join(root, 'catalog.sqlite'));
-  db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
-    CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, passwordHash TEXT NOT NULL, salt TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, userId TEXT NOT NULL REFERENCES users(id), expires INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, ownerId TEXT NOT NULL REFERENCES users(id), slug TEXT UNIQUE NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL, license TEXT NOT NULL, sourceUrl TEXT NOT NULL, createdAt TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS versions (id TEXT PRIMARY KEY, projectId TEXT NOT NULL REFERENCES projects(id), name TEXT NOT NULL, gameVersions TEXT NOT NULL, loaders TEXT NOT NULL, dependencies TEXT NOT NULL, filename TEXT NOT NULL, status TEXT NOT NULL, sha512 TEXT, size INTEGER, createdAt TEXT NOT NULL, reviewedAt TEXT, reviewNote TEXT NOT NULL DEFAULT '', downloads INTEGER NOT NULL DEFAULT 0, rightsConfirmed INTEGER NOT NULL);
-    CREATE INDEX IF NOT EXISTS project_versions ON versions(projectId, status);
-    CREATE INDEX IF NOT EXISTS session_expiry ON sessions(expires);`);
+  const db = openDatabase(root);
   let base = options.publicUrl || process.env.PETAL_PUBLIC_URL || '';
   if (base) {
     const url = new URL(base);
@@ -97,14 +90,6 @@ async function createPetalServer(options = {}) {
   };
   const versionView = row => ({ id: row.id, projectId: row.projectId, name: row.name, gameVersions: JSON.parse(row.gameVersions), loaders: JSON.parse(row.loaders), dependencies: JSON.parse(row.dependencies), status: row.status, createdAt: row.createdAt, reviewNote: row.reviewNote, rightsConfirmed: !!row.rightsConfirmed, downloads: row.downloads, file: row.sha512 ? { name: row.filename, size: row.size, hash: row.sha512, algorithm: 'sha512', url: `${base}/v1/versions/${row.id}/download` } : null });
   const projectView = row => ({ id: row.id, slug: row.slug, title: row.title, description: row.description, license: row.license, sourceUrl: row.sourceUrl, author: db.prepare('SELECT username FROM users WHERE id=?').get(row.ownerId).username, downloads: db.prepare("SELECT COALESCE(SUM(downloads),0) AS count FROM versions WHERE projectId=? AND status='published'").get(row.id).count, url: `${base}/projects/${row.id}` });
-  const json = (res, status, data) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
-  const body = async req => {
-    if (!String(req.headers['content-type']).startsWith('application/json')) fail(415, 'Use application/json.');
-    let length = 0; const chunks = [];
-    for await (const chunk of req) { length += chunk.length; if (length > 65536) fail(413, 'Request body too large.'); chunks.push(chunk); }
-    try { const value = JSON.parse(Buffer.concat(chunks)); if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(); return value; }
-    catch { fail(400, 'Invalid JSON object.'); }
-  };
   const issueSession = user => {
     const token = randomBytes(32).toString('hex'), expires = Date.now() + 24 * 60 * 60 * 1000;
     db.prepare('INSERT INTO sessions VALUES (?,?,?)').run(digest(token), user.id, expires);
