@@ -1,7 +1,8 @@
 {
   "name": "petal-launcher",
-  "version": "0.1.2",
-  "description": "Minecraft Java launcher bringing Modrinth and CurseForge together",
+  "version": "0.2.0",
+  "description": "Minecraft Java launcher with Modrinth, CurseForge, and moderated Petal mod hosting",
+  "engines": { "node": ">=24" },
   "private": true,
   "author": "P1kaCat",
   "license": "SEE LICENSE IN LICENSE",
@@ -9,6 +10,7 @@
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
+    "api": "node api/server.cjs",
     "test": "node --test test/*.test.cjs",
     "dist": "electron-builder --win portable"
   },
@@ -28,7 +30,8 @@
     "@xmcl/file-transfer": "1.0.6",
     "@xmcl/installer": "5.4.0",
     "msmc": "5.0.5",
-    "undici": "6.0.1"
+    "undici": "6.0.1",
+    "yauzl": "3.4.0"
   },
   "devDependencies": {
     "electron": "^44.5.1",

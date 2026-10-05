@@ -82,6 +82,6 @@ async function launchGame(store, profileId, account, notify) {
   if (!account?.profile || account.isDemo()) throw new Error('Sign in with a Microsoft account that owns Minecraft Java.');
   const game = await prepareGame(store, profileId, notify);
   notify('Starting Minecraft…');
-  return launch({ gamePath: game.directory, resourcePath: game.resources, javaPath: game.javaPath, version: game.version, gameProfile: { id: account.profile.id, name: account.profile.name }, accessToken: account.mcToken, userType: 'msa', features: { petal_session: { clientid: store.data.settings.microsoftClientId, auth_xuid: account.xuid || '0' } }, maxMemory: store.data.settings.memory, minMemory: 512, launcherName: 'Petal', launcherBrand: '0.1.2', extraExecOption: { windowsHide: true } });
+  return launch({ gamePath: game.directory, resourcePath: game.resources, javaPath: game.javaPath, version: game.version, gameProfile: { id: account.profile.id, name: account.profile.name }, accessToken: account.mcToken, userType: 'msa', features: { petal_session: { clientid: store.data.settings.microsoftClientId, auth_xuid: account.xuid || '0' } }, maxMemory: store.data.settings.memory, minMemory: 512, launcherName: 'Petal', launcherBrand: '0.2.0', extraExecOption: { windowsHide: true } });
 }
 module.exports = { prepareGame, launchGame, selectNeoForge };

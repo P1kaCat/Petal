@@ -1,0 +1,13 @@
+services:
+  petal-api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4318:4318"
+    environment:
+      PETAL_PUBLIC_URL: ${PETAL_PUBLIC_URL:-http://127.0.0.1:4318}
+    volumes:
+      - ./api/data:/app/api/data

@@ -2,9 +2,11 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { safeFilename } = require('./store.cjs');
-async function download(file, fetcher = fetch) {
+const { isPetalDownload } = require('./petal-url.cjs');
+async function download(file, fetcher = fetch, petalBaseUrl = '') {
   const url = new URL(file.url);
-  if (url.protocol !== 'https:' || !['cdn.modrinth.com', 'mediafilez.forgecdn.net', 'edge.forgecdn.net', 'media.forgecdn.net'].includes(url.hostname)) throw new Error('Download URL not allowed.');
+  const trustedCDN = url.protocol === 'https:' && ['cdn.modrinth.com', 'mediafilez.forgecdn.net', 'edge.forgecdn.net', 'media.forgecdn.net'].includes(url.hostname);
+  if (!trustedCDN && !isPetalDownload(url, petalBaseUrl)) throw new Error('Download URL not allowed.');
   safeFilename(file.name);
   if (!file.hash || !['sha1', 'sha512'].includes(file.algorithm)) throw new Error('Missing file checksum.');
   const response = await fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(180000) });
@@ -64,7 +66,7 @@ async function installMods(store, catalog, profileId, source, id, notify = () =>
       const target = path.join(modsDir, safeFilename(mod.file.name));
       const owner = original.find(m => m.file.name.toLowerCase() === mod.file.name.toLowerCase());
       try { await fs.access(target); if (!owner || owner.source !== mod.source || owner.id !== mod.id) throw new Error(`The file ${mod.file.name} already exists and belongs to another mod.`); } catch (e) { if (e.code !== 'ENOENT') throw e; }
-      await fs.writeFile(path.join(stage, mod.file.name), await download(mod.file, fetcher));
+      await fs.writeFile(path.join(stage, mod.file.name), await download(mod.file, fetcher, mod.source === 'petal' ? catalog.petalUrl : ''));
     }
     for (const mod of plan) {
       const old = original.find(m => m.source === mod.source && m.id === mod.id);

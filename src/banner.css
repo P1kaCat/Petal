@@ -32,3 +32,5 @@
   .hero-copy { max-width: 60%; }
   .hero h2 { font-size: 29px; }
 }
+
+.source-pill.petal,.badge.petal{background:#302540;color:#ceb8f4;border-color:#67517e}

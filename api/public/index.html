@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Petal · Creator portal</title><link rel="stylesheet" href="/portal.css"></head>
+<body><main>
+  <header><a class="brand" href="/">✿ petal <small>CREATOR PORTAL</small></a><span id="session-label">Not signed in</span></header>
+  <section class="hero"><span class="eyebrow">YOUR MODS. A NEW HOME.</span><h1>Let your ideas bloom.</h1><p>Publish Minecraft mods on Petal. Every release is reviewed before it appears in the launcher.</p></section>
+  <p id="notice" role="status" hidden></p>
+  <section id="auth" class="grid">
+    <form id="login-form"><h2>Your author account</h2><label>Username<input name="username" required minlength="3" maxlength="40" pattern="[a-zA-Z0-9_-]+" autocomplete="username"></label><label>Password<input name="password" type="password" required minlength="12" maxlength="256" autocomplete="current-password"></label><div class="actions"><button type="submit">Sign in</button><button type="button" id="register">Create account</button></div><p class="hint">Choose a password of at least 12 characters. This preview has no password reset service.</p></form>
+    <form id="admin-form"><h2>Review desk</h2><p>Administrators review rights, compatibility, and files before publication.</p><label>Administrator token<input name="token" type="password" required minlength="32" autocomplete="off"></label><button type="submit">Open review desk</button><p class="hint">Keep this token on the server. Never put it in the launcher or GitHub.</p></form>
+  </section>
+  <div id="account-actions" hidden><button id="logout" class="secondary">Sign out</button></div>
+  <section id="author" hidden>
+    <div class="grid">
+      <form id="project-form"><h2>Create a mod project</h2><label>Project name<input name="title" required maxlength="120"></label><label>URL slug<input name="slug" required maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="my-mod"></label><label>Description<textarea name="description" required maxlength="4000"></textarea></label><label>Your mod's license<input name="license" required maxlength="500" placeholder="MIT, Apache-2.0, or your own license"></label><label>Source / author website (optional)<input name="sourceUrl" type="url" placeholder="https://github.com/you/your-mod"></label><button type="submit">Create project</button></form>
+      <form id="version-form"><h2>Submit a release</h2><label>Project<select name="projectId" required id="project-select"></select></label><label>Version name<input name="name" required maxlength="100" placeholder="1.0.0"></label><label>Minecraft versions<input name="gameVersions" required placeholder="1.21.1, 1.21.4"></label><label>Mod loaders<select name="loader" required><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="neoforge">NeoForge</option></select></label><label>Required Petal project IDs (optional)<input name="dependencies" placeholder="Comma-separated project UUIDs"></label><label>Mod JAR (up to 64 MB)<input name="file" type="file" accept=".jar" required></label><label class="check"><input name="rights" type="checkbox" required> I own this mod or have permission to host and distribute it on Petal.</label><button type="submit">Upload for review</button><p class="hint">This submits your file; it will not become public until approved. Petal's code license does not replace your mod's license.</p></form>
+    </div>
+    <h2>Your projects & submissions</h2><div id="my-projects"></div>
+  </section>
+  <section id="admin" hidden><div class="actions"><h2>Release reviews</h2><select id="review-status"><option value="pending">Pending</option><option value="published">Published</option><option value="rejected">Rejected</option></select><button id="refresh-reviews" class="secondary">Refresh</button></div><p class="hint">Inspect the author, distribution rights, mod license, and file before approving. The archive checks are not a malware scan. Rejecting a published version removes it from public downloads.</p><div id="reviews"></div></section>
+  <section><h2>Explore Petal mods</h2><form id="search-form" class="actions"><input name="q" placeholder="Search published mods" aria-label="Search published mods"><button type="submit">Search</button></form><div id="catalog"></div></section>
+  <footer>Independent Minecraft mod hosting · Moderated releases · Petal API preview</footer>
+</main><script src="/portal.js"></script></body></html>

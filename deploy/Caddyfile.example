@@ -1,0 +1,7 @@
+# Replace this placeholder with your actual domain before use.
+mods.your-domain.example {
+    request_body {
+        max_size 64MB
+    }
+    reverse_proxy 127.0.0.1:4318
+}

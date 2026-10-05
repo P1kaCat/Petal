@@ -6,6 +6,7 @@ const { createHash } = require('node:crypto');
 const { Auth } = require('msmc');
 const { Store, safeFilename, atomicJSON } = require('./store.cjs');
 const { Catalog } = require('./catalog.cjs');
+const { petalOrigin } = require('./petal-url.cjs');
 const { installMods, assertNotRequired } = require('./mods.cjs');
 const { launchGame, prepareGame } = require('./game.cjs');
 app.commandLine.appendSwitch('lang', 'en-US');
@@ -25,7 +26,7 @@ async function saveSecrets() {
   await atomicJSON(path.join(store.root, 'credentials.json'), { encrypted: safeStorage.encryptString(JSON.stringify(secrets)).toString('base64') });
 }
 function snapshot() {
-  return { ...structuredClone(store.data), account: account?.profile ? { name: account.profile.name, id: account.profile.id } : null, curseforgeEnabled: !!secrets.curseforgeKey, root: store.root, running: [...running.keys()], busy };
+  return { ...structuredClone(store.data), account: account?.profile ? { name: account.profile.name, id: account.profile.id } : null, curseforgeEnabled: !!secrets.curseforgeKey, petalEnabled: !!store.data.settings.petalApiUrl, root: store.root, running: [...running.keys()], busy };
 }
 async function exclusive(operation) {
   if (busy) throw new Error('An operation is already in progress.');
@@ -84,11 +85,12 @@ const handlers = {
     const memory = Number(options.memory);
     if (!Number.isInteger(memory) || memory < 1024 || memory > 32768) throw new Error('Memory must be between 1 and 32 GB.');
     const clientId = String(options.microsoftClientId || '').trim();
+    const petalApiUrl = petalOrigin(options.petalApiUrl ?? store.data.settings.petalApiUrl ?? '');
     if (clientId && !/^[0-9a-f-]{36}$/i.test(clientId)) throw new Error('Invalid Microsoft client ID.');
     if (options.curseforgeKey !== undefined) secrets.curseforgeKey = String(options.curseforgeKey).trim();
     if (clientId !== store.data.settings.microsoftClientId) { account = null; delete secrets.refreshToken; }
     await saveSecrets();
-    store.data.settings = { memory, javaPath: String(options.javaPath || '').trim(), microsoftClientId: clientId };
+    store.data.settings = { memory, javaPath: String(options.javaPath || '').trim(), microsoftClientId: clientId, petalApiUrl };
     await store.save();
     return snapshot();
   }),
@@ -130,6 +132,10 @@ const handlers = {
   openFolder: ({ profileId }) => shell.openPath(store.directory(profileId)),
   openProject: async ({ source, id }) => {
     let url;
+    if (source === 'petal') {
+      if (!catalog.petalUrl || !/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid Petal project.');
+      return shell.openExternal(`${catalog.petalUrl}/projects/${id}`);
+    }
     if (source === 'modrinth') url = `https://modrinth.com/mod/${encodeURIComponent(id)}`;
     else if (source === 'curseforge') url = (await catalog.cf(`/mods/${encodeURIComponent(id)}`)).data.links.websiteUrl;
     else throw new Error('Unknown source.');
@@ -150,7 +156,7 @@ else {
       const file = JSON.parse(await fs.readFile(path.join(root, 'credentials.json'), 'utf8'));
       secrets = JSON.parse(safeStorage.decryptString(Buffer.from(file.encrypted, 'base64')));
     } catch (e) { if (e.code !== 'ENOENT') dialog.showErrorBox('Petal', 'Unable to decrypt saved credentials. Sign in again and enter your CurseForge key.'); }
-    catalog = new Catalog(() => secrets.curseforgeKey);
+    catalog = new Catalog(() => secrets.curseforgeKey, fetch, () => store.data.settings.petalApiUrl);
     ipcMain.handle('petal:call', async (event, method, args) => {
       if (event.sender !== win.webContents || event.senderFrame.url !== page || !Object.hasOwn(handlers, method)) return { error: 'Action not allowed.' };
       try { return { data: await handlers[method](args || {}) }; }

@@ -61,3 +61,21 @@ The Windows portable `Petal 0.1.2.exe` was rebuilt successfully and passed the
 same four UI checks with fresh isolated data in
 `artifacts/smoke-english-portable`, including a real Sodium download. The
 portable process exited with code 0.
+
+## Moderated Petal API preview (0.2.0)
+
+On October 5, 2026, the 17 preview regression tests passed. They exercise
+account ownership/logout, private submissions, approval and withdrawal,
+archive/upload rejection, dependency installation and exact configured download
+origin restrictions. This is local preview evidence, not public hosting validation.
+
+The Windows portable build completed successfully. Source, unpacked and portable
+application smoke runs each passed four checks: IPC profile creation, an actual
+Sodium installation, persistent settings with encryption, and unknown IPC rejection.
+The capture environment required `--disable-gpu` after an offscreen rendering error;
+this does not establish that every computer needs that flag. README screenshots
+were captured from the actual English preview using isolated artifact data.
+
+Author email verification/recovery, malware scanning and Docker/Bloom deployment
+are not yet verified. The server is a single-process local preview with moderated
+mod hosting; the full platform specification is a separate implementation effort.

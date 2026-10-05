@@ -4,7 +4,7 @@
 
 ## Run the source
 
-On Windows, install Node.js 22 or later, pnpm 11, and Git:
+On Windows, install Node.js 24 or later, pnpm 11, and Git:
 
 ```powershell
 git clone https://github.com/P1kaCat/Petal.git
@@ -85,7 +85,7 @@ connection pool and three retry attempts; retries reuse verified cache files.
 pnpm dist
 ```
 
-The unsigned development build is written to `dist/Petal 0.1.2.exe`. It runs
+The unsigned development build is written to `dist/Petal 0.2.0.exe`. It runs
 without Node.js installed. Generated builds are excluded from Git.
 
 ## Checks

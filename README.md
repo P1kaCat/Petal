@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/header.svg" alt="Petal — Your Minecraft, in bloom. Modrinth + CurseForge." width="100%">
+  <img src="docs/media/header.svg" alt="Petal — Your Minecraft, in bloom. Modrinth, CurseForge and Petal." width="100%">
 </p>
 
 <p align="center">
@@ -26,14 +26,14 @@
 
 ## A little space for a bigger world
 
-Petal brings **Modrinth and CurseForge** into a shared discovery interface,
+Petal brings **Modrinth, CurseForge, and its own Petal catalog** into a shared discovery interface,
 while keeping each platform's projects and identifiers distinct. Create a
 profile, choose your Minecraft version and mod loader, and find mods that fit.
 
 The Windows alpha uses a dark interface, a violet flower identity, and a real
 Minecraft cherry-grove panorama. **The app interface and repository documentation are in English.**
 
-> **Development preview · v0.1.2**
+> **Development preview · v0.2.0**
 > Modrinth installation and Minecraft preparation have been exercised with real
 > downloads. CurseForge requires an authorized API key. Microsoft sign-in needs
 > an approved application registration. These two authenticated paths still need
@@ -64,7 +64,8 @@ prepare the game, or open an instance folder from the same screen.
 
 | Feature | What the alpha provides |
 | :--- | :--- |
-| **Two catalogs** | Modrinth discovery and installation; CurseForge integration requiring an authorized key. |
+| **Three catalogs** | Modrinth, authorized CurseForge integration, and the configured Petal server. |
+| **Petal hosting** | Own mod server, author accounts, private submissions, administrator review, and approved releases in the launcher. |
 | **Separate profiles** | Dedicated folders for each instance's saves, mods, and configuration. |
 | **Three mod loaders** | Automatic preparation for Fabric, Forge, and NeoForge. |
 | **Minecraft + Java** | Game files and the required Java runtime downloaded from official services. |
@@ -74,7 +75,7 @@ prepare the game, or open an instance folder from the same screen.
 
 ## Start growing
 
-Install **Node.js 22 or later**, **pnpm 11**, and Git, then run:
+Install **Node.js 24 or later**, **pnpm 11**, and Git, then run:
 
 ```powershell
 git clone https://github.com/P1kaCat/Petal.git
@@ -93,13 +94,30 @@ To create the Windows portable executable:
 pnpm dist
 ```
 
-The output is `dist/Petal 0.1.2.exe`. Compiled builds and installed dependencies
+The output is `dist/Petal 0.2.0.exe`. Compiled builds and installed dependencies
 are not checked into this repository. This development executable is unsigned.
 
 See the [setup guide](docs/SETUP.md) for CurseForge configuration, Microsoft
 authentication, Java selection, data storage, and development checks.
 
 ## Where the alpha stands
+
+### Give your mods a home
+
+The **[Petal API & creator portal](api/README.md)** hosts mods on your own
+server. Authors create accounts and submit releases; administrators review
+them before publication. Published mods can be searched and installed through
+the launcher's **Petal** tab, with dependency handling and SHA-512 verification.
+
+Run the server locally with Node.js 24 or later:
+
+```powershell
+pnpm api
+```
+
+Open `http://127.0.0.1:4318` for the creator portal, then set that URL under
+**Settings → Petal API** in the launcher. The [API guide](api/README.md)
+documents author submission, moderation, endpoints, deployment, and preview limits.
 
 **Implemented:** instance management, both catalog integrations, dependency-aware
 mod installation, per-mod updates, loader preparation, and a Microsoft sign-in

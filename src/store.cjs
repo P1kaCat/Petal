@@ -13,7 +13,7 @@ async function atomicJSON(file, data) {
   finally { await fs.rm(temporary, { force: true }); }
 }
 class Store {
-  constructor(root) { this.root = root; this.data = { profiles: [], settings: { memory: 4096, javaPath: '', microsoftClientId: '' } }; }
+  constructor(root) { this.root = root; this.data = { profiles: [], settings: { memory: 4096, javaPath: '', microsoftClientId: '', petalApiUrl: '' } }; }
   async load() {
     try { this.data = JSON.parse(await fs.readFile(path.join(this.root, 'state.json'), 'utf8')); }
     catch (e) { if (e.code !== 'ENOENT') throw new Error('The profile file is unreadable. Back it up before attempting repairs.'); }
