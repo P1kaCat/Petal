@@ -15,6 +15,9 @@ const {createAuth}=require('./auth.cjs');
 const {createAccounts}=require('./accounts.cjs');
 const {createMail}=require('./mail.cjs');
 const {createAccountRoutes}=require('./routes/auth.cjs');
+const {createProjects}=require('./projects.cjs');
+const {createModeration}=require('./moderation.cjs');
+const {createProjectRoutes}=require('./routes/projects.cjs');
 const text = (value, label, max = 200) => {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail(400, `Invalid ${label}.`);
   return value.trim();
@@ -74,6 +77,9 @@ async function createPetalServer(options = {}) {
   const accounts=createAccounts({db,mail,publicMode,key:Buffer.from(mfaKey,'hex'),now});
   const auth=createAuth({db,adminToken,publicMode,now});
   const accountRoutes=createAccountRoutes({db,accounts,auth,publicMode});
+  const projects=createProjects({db,auth});
+  const moderationService=createModeration({db,auth,projects});
+  const projectRoutes=createProjectRoutes({db,root,auth,projects,moderation:moderationService});
   const maxUpload = options.maxUploadBytes || Number(process.env.PETAL_API_UPLOAD_MB || 64) * 1024 * 1024;
   const maxStorage = options.maxStorageBytes || Number(process.env.PETAL_API_STORAGE_MB || 2048) * 1024 * 1024;
   if (!Number.isSafeInteger(maxUpload) || !Number.isSafeInteger(maxStorage) || maxUpload < 1 || maxStorage < 1) throw new Error('Invalid upload or storage limits.');
@@ -90,13 +96,10 @@ async function createPetalServer(options = {}) {
   const requireUser = req => userFor(req) || fail(401, 'Sign in to continue.');
   const requireAdmin = req => { const u = requireUser(req); auth.requirePermission(u,'moderate'); return u; };
   const ownProject = (req, id) => {
-    const user = requireUser(req), p = db.prepare('SELECT * FROM projects WHERE id=?').get(id);
-    if (!p) fail(404, 'Project not found.');
-    if (!user.admin && p.ownerId !== user.id) fail(403, 'This project belongs to another author.');
-    return p;
+    return projects.requireAccess(requireUser(req),id,req.method==='GET'?'read':'write');
   };
-  const versionView = row => ({ id: row.id, projectId: row.projectId, name: row.name, gameVersions: JSON.parse(row.gameVersions), loaders: JSON.parse(row.loaders), dependencies: JSON.parse(row.dependencies), status: row.status, createdAt: row.createdAt, reviewNote: row.reviewNote, rightsConfirmed: !!row.rightsConfirmed, downloads: row.downloads, file: row.sha512 ? { name: row.filename, size: row.size, hash: row.sha512, algorithm: 'sha512', url: `${base}/v1/versions/${row.id}/download` } : null });
-  const projectView = row => ({ id: row.id, slug: row.slug, title: row.title, description: row.description, license: row.license, sourceUrl: row.sourceUrl, author: db.prepare('SELECT username FROM users WHERE id=?').get(row.ownerId).username, downloads: db.prepare("SELECT COALESCE(SUM(downloads),0) AS count FROM versions WHERE projectId=? AND status='published'").get(row.id).count, url: `${base}/projects/${row.id}` });
+  const versionView = (row,privateView=false) => ({ id: row.id, projectId: row.projectId, name: row.name, gameVersions: JSON.parse(row.gameVersions), loaders: JSON.parse(row.loaders), dependencies: JSON.parse(row.dependencies), status: row.status, createdAt: row.createdAt, ...(privateView===true?{reviewNote:row.reviewNote}:{}), rightsConfirmed: !!row.rightsConfirmed, downloads: row.downloads, file: row.sha512 ? { name: row.filename, size: row.size, hash: row.sha512, algorithm: 'sha512', url: `${base}/v1/versions/${row.id}/download` } : null });
+  const projectView = row => ({ id: row.id, slug: row.slug, title: row.title, description: row.description, license: row.license, sourceUrl: row.sourceUrl, author: db.prepare('SELECT username FROM users WHERE id=?').get(row.ownerId).username, downloads: db.prepare("SELECT COALESCE(SUM(downloads),0) AS count FROM versions WHERE projectId=? AND status='published'").get(row.id).count, url: `${base}/projects/${row.id}`, revisionId:row.revisionId, iconUrl:row.iconId?'/media/'+row.iconId:null,gallery:JSON.parse(row.gallery).map(id=>'/media/'+id) });
   const limit = (req, auth = false) => {
     const key = `${auth ? 'auth' : 'read'}:${req.socket.remoteAddress}`;
     const now = Date.now(); let bucket = rates.get(key);
@@ -120,9 +123,10 @@ async function createPetalServer(options = {}) {
       if(req.headers['sec-fetch-site']==='cross-site'&&!['GET','HEAD'].includes(req.method))fail(403,'Cross-origin writes are not allowed.');
       auth.validateCSRF(req);
       if(await accountRoutes(req,res,route))return;
+      if(await projectRoutes(req,res,route))return;
       if (req.method === 'GET' && route === '/health') return json(res, 200, { status: 'ok', service: 'Petal API', version: '1' });
       if (req.method === 'GET' && route === '/v1/game/versions') return json(res,200,await metadata.versions());
-      const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/account':'account.html','/account.js':'account.js','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};
+      const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/account':'account.html','/account.js':'account.js','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/project.js':'project.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};
       if (req.method === 'GET' && Object.hasOwn(assets,route)) {
         const filename=assets[route];
         const data=await fs.readFile(route==='/minecraft-panorama.png'?path.join(__dirname,filename):path.join(__dirname,'public',filename));
@@ -131,7 +135,7 @@ async function createPetalServer(options = {}) {
       }
       if (req.method === 'GET' && route === '/v1/me/projects') {
         const user = requireUser(req);
-        return json(res, 200, { projects: db.prepare('SELECT * FROM projects WHERE ownerId=? ORDER BY createdAt DESC').all(user.id).map(projectView) });
+        return json(res, 200, { projects: db.prepare("SELECT * FROM projects WHERE ownerId=? OR EXISTS(SELECT 1 FROM members m WHERE m.projectId=projects.id AND m.userId=? AND m.status='accepted') ORDER BY createdAt DESC LIMIT 100").all(user.id,user.id).map(row=>({...projectView(row),teamRole:projects.role(user,row)})) });
       }
       if (req.method === 'POST' && route === '/v1/projects') {
         const user = requireUser(req); auth.requirePermission(user,'publish'); if (user.localOperator) fail(400, 'Create projects using an author account.');
@@ -147,7 +151,7 @@ async function createPetalServer(options = {}) {
         }
         if (db.prepare('SELECT COUNT(*) AS n FROM projects WHERE ownerId=?').get(user.id).n >= 100) fail(409, 'Author project limit reached.');
         if (db.prepare('SELECT id FROM projects WHERE slug=?').get(slug)) fail(409, 'Slug already in use.');
-        const id = randomUUID(); db.prepare('INSERT INTO projects VALUES (?,?,?,?,?,?,?,?)').run(id, user.id, slug, title, description, license, sourceUrl, new Date().toISOString());
+        const id = randomUUID(); db.prepare('INSERT INTO projects(id,ownerId,slug,title,description,license,sourceUrl,createdAt) VALUES (?,?,?,?,?,?,?,?)').run(id, user.id, slug, title, description, license, sourceUrl, new Date().toISOString());
         return json(res, 201, projectView(db.prepare('SELECT * FROM projects WHERE id=?').get(id)));
       }
       if (req.method === 'GET' && route === '/v1/search') {
@@ -172,11 +176,11 @@ async function createPetalServer(options = {}) {
       if (projectRoute) {
         const id = projectRoute[1], p = db.prepare('SELECT * FROM projects WHERE id=?').get(id);
         if (!p) fail(404, 'Project not found.');
-        const user = userFor(req), owner = user?.admin || user?.id === p.ownerId;
+        const user = userFor(req), owner = user?.admin || !!projects.role(user,p);
         if (req.method === 'GET') {
           const rows = db.prepare(`SELECT * FROM versions WHERE projectId=? ${owner ? '' : "AND status='published'"} ORDER BY createdAt DESC, id DESC`).all(id);
           if (!owner && !rows.length) fail(404, 'Project not found.');
-          return json(res, 200, projectRoute[2] ? { versions: rows.map(versionView) } : projectView(p));
+          return json(res, 200, projectRoute[2] ? { versions: rows.map(v=>versionView(v,!!owner)) } : projectView(p));
         }
         if (req.method === 'POST' && projectRoute[2]) {
           const publisher=requireUser(req); auth.requirePermission(publisher,'publish'); ownProject(req, id); const data = await body(req);
@@ -250,13 +254,13 @@ async function createPetalServer(options = {}) {
             if (v.status === 'published') db.prepare('UPDATE versions SET downloads=downloads+1 WHERE id=?').run(id);
             return;
           }
-          if (!versionRoute[2]) return json(res, 200, versionView(v));
+          if (!versionRoute[2]) return json(res, 200, versionView(v,!!userFor(req)?.admin||!!projects.role(userFor(req),projects.get(v.projectId))));
         }
       }
       if (req.method === 'GET' && route === '/v1/admin/reviews') {
         requireAdmin(req); const status = url.searchParams.get('status') || 'pending';
         if (!['pending', 'published', 'rejected'].includes(status)) fail(400, 'Invalid review status.');
-        const versions = db.prepare('SELECT * FROM versions WHERE status=? ORDER BY createdAt DESC LIMIT 100').all(status).map(v => ({ ...versionView(v), project: projectView(db.prepare('SELECT * FROM projects WHERE id=?').get(v.projectId)) }));
+        const versions = db.prepare('SELECT * FROM versions WHERE status=? ORDER BY createdAt DESC LIMIT 100').all(status).map(v => ({ ...versionView(v,true), project: projectView(db.prepare('SELECT * FROM projects WHERE id=?').get(v.projectId)) }));
         return json(res, 200, { versions });
       }
       const moderation = /^\/v1\/admin\/versions\/([a-f0-9-]{36})\/review$/.exec(route);

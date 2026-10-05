@@ -1,7 +1,7 @@
 const { DatabaseSync } = require('node:sqlite');
 const { mkdirSync } = require('node:fs');
 const path = require('node:path');
-const migrations = [require('./migrations/001-preview.cjs'),require('./migrations/002-accounts.cjs')];
+const migrations = [require('./migrations/001-preview.cjs'),require('./migrations/002-accounts.cjs'),require('./migrations/003-publication.cjs')];
 function migrate(db, steps=migrations) {
   db.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, appliedAt TEXT NOT NULL)');
   for(const step of [...steps].sort((a,b)=>a.version-b.version)) {

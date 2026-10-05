@@ -123,3 +123,12 @@ CUA verified synthetic-account login, email confirmation, logout and recovery re
 on a separate loopback instance at port 4319. Password reset was exercised by HTTP
 tests rather than changing a user credential through browser automation. Real SMTP
 delivery remains unverified.
+
+## Moderated publication checkpoint
+
+52 full tests passed. Project revisions retain approved content through pending and
+rejected changes; stale and repeated decisions are rejected. Tests cover accepted
+teams, owner-only transfers, private notes/reports, image conversion/visibility and
+withdrawn downloads with preserved bytes. CUA verified an isolated author submitting
+a changed title, the old public title before approval and the new title after a
+real local review request. Synthetic project captures remain in ignored artifacts.
