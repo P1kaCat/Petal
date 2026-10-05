@@ -132,3 +132,12 @@ teams, owner-only transfers, private notes/reports, image conversion/visibility 
 withdrawn downloads with preserved bytes. CUA verified an isolated author submitting
 a changed title, the old public title before approval and the new title after a
 real local review request. Synthetic project captures remain in ignored artifacts.
+
+## Durable storage checkpoint
+
+59 tests passed with --test-concurrency=1 after the PC exhausted virtual memory during
+a parallel run. Coverage includes durable author/global reservations and concurrency,
+unsafe archive paths, crash orphan reconciliation, ENOSPC cancellation, seven-day
+withdrawal retention and pinned published references. A synthetic ClamAV socket
+verified INSTREAM framing and detection; public scanner failure stayed private,
+then retry and review succeeded. A real scanner daemon remains unverified.

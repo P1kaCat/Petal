@@ -173,8 +173,7 @@ It includes email verification, password recovery and authenticator enrollment. 
 S3/CDN storage, resumable uploads, or distributed rate limiting. Archive
 validation does not establish that a mod is safe or that its author has rights.
 Administrators must review submissions; declared compatibility is not
-automatically proven. Interrupted uploads can leave an orphan file after a
-process crash, and storage cleanup / retention tools are not implemented yet.
+automatically proven. Durable reservations and crash cleanup are implemented; see [storage policy](../docs/STORAGE.md).
 
 The preview admin token grants local moderation access until one-time account bootstrap. HTTPS public mode rejects it. Public operations need no token;
 author registration does not confer moderation rights. Keep all API data and

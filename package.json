@@ -13,7 +13,7 @@
   "scripts": {
     "start": "electron .",
     "api": "node api/server.cjs",
-    "test": "node --test test/*.test.cjs",
+    "test": "node --test --test-concurrency=1 test/*.test.cjs",
     "dist": "electron-builder --win portable"
   },
   "build": {

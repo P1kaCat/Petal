@@ -1,7 +1,7 @@
 const path=require('node:path'),fs=require('node:fs/promises');
 const {randomUUID}=require('node:crypto');
 const {body,json,fail}=require('../http.cjs');
-function createProjectRoutes({db,root,auth,projects,moderation}){
+function createProjectRoutes({db,root,auth,projects,storage,moderation}){
   const user=req=>{const p=auth.authenticate(req);if(!p)fail(401,'Sign in to continue.');return p;};
   const audit=(p,action,id)=>db.prepare('INSERT INTO audit VALUES(?,?,?,?,?)').run(randomUUID(),p.id,action,id,Date.now());
   return async(req,res,route)=>{
@@ -49,10 +49,13 @@ function createProjectRoutes({db,root,auth,projects,moderation}){
         if(!['image/png','image/jpeg','image/webp'].includes(req.headers['content-type']))fail(415,'Use a PNG, JPEG or WebP raster image.');
         const length=Number(req.headers['content-length']);if(!Number.isSafeInteger(length)||length<1)fail(411,'Content-Length is required.');if(length>5*1024*1024)fail(413,'Image exceeds 5 MB.');
         if(db.prepare('SELECT COUNT(*) AS n FROM images WHERE projectId=?').get(id).n>=100)fail(409,'Project image limit reached.');
+        const reservation=storage.reserveUpload({userId:p.id,size:5*1024*1024,kind:'image'});
+        try{
         const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>length)fail(413,'Image size exceeded.');chunks.push(chunk);}if(size!==length)fail(400,'Incomplete image.');
         let bytes;try{const sharp=require('sharp'),image=sharp(Buffer.concat(chunks),{limitInputPixels:16000000,animated:false});const metadata=await image.metadata();if(!['png','jpeg','webp'].includes(metadata.format)||metadata.pages>1)fail(400,'Use a static raster image.');bytes=await image.rotate().resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).webp({quality:85}).toBuffer();}catch(e){if(e.status)throw e;fail(400,'Invalid image.');}
         const imageId=randomUUID();await fs.mkdir(path.join(root,'images'),{recursive:true});await fs.writeFile(path.join(root,'images',imageId+'.webp'),bytes,{flag:'wx',mode:0o600});
-        try{db.prepare('INSERT INTO images VALUES(?,?,?,?,?)').run(imageId,id,p.id,bytes.length,new Date().toISOString());}catch(e){await fs.rm(path.join(root,'images',imageId+'.webp'),{force:true});throw e;}json(res,201,{id:imageId,url:'/media/'+imageId});return true;
+        try{projects.requireAccess(user(req),id);storage.commitImage(reservation,{id:imageId,projectId:id,size:bytes.length});}catch(e){await fs.rm(path.join(root,'images',imageId+'.webp'),{force:true});throw e;}json(res,201,{id:imageId,url:'/media/'+imageId});return true;
+        }finally{storage.cancelUpload(reservation);}
       }
     }
     const imageRoute=/^\/media\/([a-f0-9-]{36})$/.exec(route);

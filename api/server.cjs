@@ -8,7 +8,9 @@ const { pipeline } = require('node:stream/promises');
 const { openDatabase } = require('./db.cjs');
 const { fail, json, body } = require('./http.cjs');
 const { projectPage, authorPage } = require('./public-pages.cjs');
-const yauzl = require('yauzl');
+const {validateArchive}=require('./archives.cjs');
+const {createStorage}=require('./storage.cjs');
+const {createScanner}=require('./scanner.cjs');
 const { safeFilename } = require('../src/store.cjs');
 const { MinecraftMetadata, validVersionId } = require('../src/minecraft-metadata.cjs');
 const {createAuth}=require('./auth.cjs');
@@ -25,25 +27,7 @@ const text = (value, label, max = 200) => {
 const matchId = value => /^[a-f0-9-]{36}$/.test(value);
 const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-async function validateJar(filename) {
-  let zip;
-  try {
-    zip = await yauzl.openPromise(filename, { lazyEntries: true, strictFileNames: true, validateEntrySizes: true });
-    let count = 0, expanded = 0, descriptor = false;
-    for await (const entry of zip.eachEntry()) {
-      expanded += entry.uncompressedSize;
-      if (++count > 30000 || expanded > 1024 * 1024 * 1024 || entry.isEncrypted()) fail(400, 'Archive is encrypted or exceeds archive limits.');
-      if (['fabric.mod.json', 'quilt.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml', 'mcmod.info'].includes(entry.fileName)) descriptor = true;
-      // Read each entry without extracting it; verify structure and declared sizes.
-      if (!entry.fileName.endsWith('/')) {
-        const stream = await zip.openReadStreamPromise(entry);
-        for await (const chunk of stream) { void chunk; }
-      }
-    }
-    if (!descriptor) fail(400, 'The JAR needs a Fabric, Quilt, Forge, or NeoForge mod descriptor.');
-  } catch (error) { if (error.status) throw error; fail(400, 'Invalid or damaged mod JAR archive.'); }
-  finally { zip?.close(); }
-}
+const validateJar=filename=>validateArchive(filename,'mod');
 
 async function createPetalServer(options = {}) {
   const root = path.resolve(options.dataDir || process.env.PETAL_API_DATA_DIR || path.join(__dirname, 'data'));
@@ -79,26 +63,30 @@ async function createPetalServer(options = {}) {
   const accountRoutes=createAccountRoutes({db,accounts,auth,publicMode});
   const projects=createProjects({db,auth});
   const moderationService=createModeration({db,auth,projects});
-  const projectRoutes=createProjectRoutes({db,root,auth,projects,moderation:moderationService});
   const maxUpload = options.maxUploadBytes || Number(process.env.PETAL_API_UPLOAD_MB || 64) * 1024 * 1024;
   const maxStorage = options.maxStorageBytes || Number(process.env.PETAL_API_STORAGE_MB || 2048) * 1024 * 1024;
   if (!Number.isSafeInteger(maxUpload) || !Number.isSafeInteger(maxStorage) || maxUpload < 1 || maxStorage < 1) throw new Error('Invalid upload or storage limits.');
-  const activeUploads = new Set(), rates = new Map();
-  let reservedBytes = 0;
+  const maxAuthor=options.maxAuthorBytes||Number(process.env.PETAL_API_AUTHOR_MB||256)*1048576;
+  const storage=createStorage({db,root,maxUpload,maxStorage,maxAuthor,now});
+  await storage.collectAbandoned({restart:true});
+  const scanner=options.scanner||createScanner();
+  const reviewPolicy=options.reviewPolicy||process.env.PETAL_REVIEW_POLICY||(publicMode?'scanner':'local-manual');
+  if(!['scanner','manual','local-manual'].includes(reviewPolicy)||publicMode&&reviewPolicy==='local-manual')throw new Error('Invalid review policy.');
+  const projectRoutes=createProjectRoutes({db,root,auth,projects,storage,moderation:moderationService});
+  const rates = new Map();
   const sweep = setInterval(() => {
     const now = Date.now();
     for (const [key, value] of rates) if (value.until < now) rates.delete(key);
     db.prepare('DELETE FROM sessions WHERE expires < ?').run(now);
     db.prepare('DELETE FROM account_tokens WHERE expires < ?').run(now);
   }, 60000).unref();
-  const currentUsed = () => db.prepare('SELECT COALESCE(SUM(size), 0) AS bytes FROM versions').get().bytes;
   const userFor = auth.authenticate;
   const requireUser = req => userFor(req) || fail(401, 'Sign in to continue.');
   const requireAdmin = req => { const u = requireUser(req); auth.requirePermission(u,'moderate'); return u; };
   const ownProject = (req, id) => {
     return projects.requireAccess(requireUser(req),id,req.method==='GET'?'read':'write');
   };
-  const versionView = (row,privateView=false) => ({ id: row.id, projectId: row.projectId, name: row.name, gameVersions: JSON.parse(row.gameVersions), loaders: JSON.parse(row.loaders), dependencies: JSON.parse(row.dependencies), status: row.status, createdAt: row.createdAt, ...(privateView===true?{reviewNote:row.reviewNote}:{}), rightsConfirmed: !!row.rightsConfirmed, downloads: row.downloads, file: row.sha512 ? { name: row.filename, size: row.size, hash: row.sha512, algorithm: 'sha512', url: `${base}/v1/versions/${row.id}/download` } : null });
+  const versionView = (row,privateView=false) => ({ id: row.id, projectId: row.projectId, name: row.name, gameVersions: JSON.parse(row.gameVersions), loaders: JSON.parse(row.loaders), dependencies: JSON.parse(row.dependencies), status: row.status, createdAt: row.createdAt, ...(privateView===true?{reviewNote:row.reviewNote,scanStatus:row.scanStatus}:{}), rightsConfirmed: !!row.rightsConfirmed, downloads: row.downloads, file: row.sha512 ? { name: row.filename, size: row.size, hash: row.sha512, algorithm: 'sha512', url: `${base}/v1/versions/${row.id}/download` } : null });
   const projectView = row => ({ id: row.id, slug: row.slug, title: row.title, description: row.description, license: row.license, sourceUrl: row.sourceUrl, author: db.prepare('SELECT username FROM users WHERE id=?').get(row.ownerId).username, downloads: db.prepare("SELECT COALESCE(SUM(downloads),0) AS count FROM versions WHERE projectId=? AND status='published'").get(row.id).count, url: `${base}/projects/${row.id}`, revisionId:row.revisionId, iconUrl:row.iconId?'/media/'+row.iconId:null,gallery:JSON.parse(row.gallery).map(id=>'/media/'+id) });
   const limit = (req, auth = false) => {
     const key = `${auth ? 'auth' : 'read'}:${req.socket.remoteAddress}`;
@@ -215,17 +203,15 @@ async function createPetalServer(options = {}) {
         if (req.method === 'PUT' && versionRoute[2] === 'file') {
           ownProject(req, v.projectId);
           if (v.status !== 'draft') fail(409, 'This version has already been submitted. Create a new version instead.');
-          if (activeUploads.has(id) || activeUploads.size >= 4) fail(409, 'An upload is already in progress. Try again later.');
           const length = Number(req.headers['content-length']);
           if (!Number.isSafeInteger(length) || length < 1) fail(411, 'A positive Content-Length is required.');
-          if (length > maxUpload) fail(413, 'Mod file exceeds the upload limit.');
-          if (currentUsed() + reservedBytes + length > maxStorage) fail(507, 'Storage quota exceeded.');
           if (!['application/java-archive', 'application/octet-stream'].includes(req.headers['content-type'])) fail(415, 'Upload a raw JAR file.');
-          activeUploads.add(id); reservedBytes += length;
-          const temporary = path.join(root, 'incoming', randomUUID()), destination = path.join(root, 'files', id + '.jar');
+          const publisher=requireUser(req);auth.requirePermission(publisher,'publish');
+          const reservation=storage.reserveUpload({userId:publisher.id,versionId:id,size:length});
+          const temporary = path.join(root, 'incoming', reservation.id), destination = storage.filePath(id+'.jar','quarantine');
           let committed = false, size = 0; const hash = createHash('sha512');
           try {
-            const handle = await fs.open(temporary, 'wx', 0o600);
+            const handle = await (options.writeUpload||((filename)=>fs.open(filename,'wx',0o600)))(temporary);
             const measure = new Transform({ transform(chunk, _encoding, cb) {
               size += chunk.length;
               if (size > length || size > maxUpload) return cb(Object.assign(new Error('Upload size exceeded.'), { status: 413 }));
@@ -235,11 +221,14 @@ async function createPetalServer(options = {}) {
             if (size !== length) fail(400, 'Incomplete upload.');
             await validateJar(temporary);
             await fs.rename(temporary, destination);
-            db.prepare("UPDATE versions SET status='pending',sha512=?,size=? WHERE id=? AND status='draft'").run(hash.digest('hex'), size, id);
+            let scanStatus=reviewPolicy==='scanner'?'unscanned':'manual';
+            if(scanner){try{const result=await scanner.scan(destination);scanStatus=['clean','infected'].includes(result?.status)?result.status:'failed';}catch{scanStatus='failed';}}
+            ownProject(req,v.projectId);auth.requirePermission(requireUser(req),'publish');
+            storage.commitUpload(reservation,{checksum:hash.digest('hex'),storageKey:id+'.jar',size,scanStatus});
             committed = true;
             return json(res, 200, versionView(db.prepare('SELECT * FROM versions WHERE id=?').get(id)));
           } finally {
-            activeUploads.delete(id); reservedBytes -= length;
+            storage.cancelUpload(reservation);
             await fs.rm(temporary, { force: true }); if (!committed) await fs.rm(destination, { force: true });
           }
         }
@@ -247,7 +236,7 @@ async function createPetalServer(options = {}) {
           if (v.status !== 'published') ownProject(req, v.projectId);
           if (versionRoute[2] === 'download') {
             if (!v.sha512) fail(404, 'File not uploaded.');
-            const filename = path.join(root, 'files', id + '.jar');
+            const filename = await storage.locate(v.storageKey||id+'.jar');
             await fs.access(filename);
             res.writeHead(200, { 'Content-Type': 'application/java-archive', 'Content-Length': v.size, 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(v.filename)}`, 'Cache-Control': 'no-store', 'X-Checksum-SHA512': v.sha512 });
             await pipeline(createReadStream(filename), res);
@@ -263,13 +252,26 @@ async function createPetalServer(options = {}) {
         const versions = db.prepare('SELECT * FROM versions WHERE status=? ORDER BY createdAt DESC LIMIT 100').all(status).map(v => ({ ...versionView(v,true), project: projectView(db.prepare('SELECT * FROM projects WHERE id=?').get(v.projectId)) }));
         return json(res, 200, { versions });
       }
+      const rescan=/^\/v1\/admin\/versions\/([a-f0-9-]{36})\/scan$/.exec(route);
+      if(req.method==='POST'&&rescan){
+        requireAdmin(req);if(!scanner)fail(503,'Scanner is not configured.');
+        const v=db.prepare("SELECT * FROM versions WHERE id=? AND status='pending' AND sha512 IS NOT NULL").get(rescan[1]);if(!v)fail(409,'No pending file to scan.');
+        let status='failed';try{const result=await scanner.scan(await storage.locate(v.storageKey));if(['clean','infected'].includes(result?.status))status=result.status;}catch{}
+        requireAdmin(req);if(!db.prepare("UPDATE versions SET scanStatus=? WHERE id=? AND status='pending'").run(status,v.id).changes)fail(409,'Version changed while scanning.');
+        if(status!=='clean')fail(503,'Scan did not approve the file. It remains private.');json(res,200,{scanStatus:status});return;
+      }
       const moderation = /^\/v1\/admin\/versions\/([a-f0-9-]{36})\/review$/.exec(route);
       if (req.method === 'POST' && moderation) {
         requireAdmin(req); const data = await body(req), v = db.prepare('SELECT * FROM versions WHERE id=?').get(moderation[1]);
         if (!v || !['pending', 'published', 'rejected'].includes(v.status) || !v.sha512) fail(409, 'No submitted file to review.');
         if (!['approve', 'reject'].includes(data.action)) fail(400, 'Use approve or reject.');
         const note = data.action === 'reject' ? text(data.note, 'rejection reason', 2000) : String(data.note || '').slice(0, 2000);
-        db.prepare('UPDATE versions SET status=?,reviewNote=?,reviewedAt=? WHERE id=?').run(data.action === 'approve' ? 'published' : 'rejected', note, new Date().toISOString(), v.id);
+        if(data.action==='approve'){
+          if(['failed','infected'].includes(v.scanStatus)||(publicMode&&v.scanStatus!=='clean'&&!(reviewPolicy==='manual'&&['manual','unscanned'].includes(v.scanStatus))))fail(503,'A successful scan or configured manual review is required before publication.');
+          await storage.publish(v);
+        }
+        requireAdmin(req);
+        if(!db.prepare('UPDATE versions SET status=?,reviewNote=?,reviewedAt=? WHERE id=? AND status=? AND reviewedAt IS ?').run(data.action === 'approve' ? 'published' : 'rejected', note, new Date().toISOString(), v.id,v.status,v.reviewedAt).changes)fail(409,'Version changed while reviewing.');
         return json(res, 200, versionView(db.prepare('SELECT * FROM versions WHERE id=?').get(v.id)));
       }
       const pageRoute = /^\/projects\/([a-f0-9-]{36})$/.exec(route);
@@ -294,13 +296,14 @@ async function createPetalServer(options = {}) {
       fail(404, 'Endpoint not found.');
     } catch (error) {
       if (res.headersSent || res.destroyed) { if (!res.destroyed) res.destroy(); return; }
-      const status = error.status || 500;
+      const status = error.code==='ENOSPC'?507:error.status || 500;
       if (status >= 500 && status !== 507) console.error('Petal API request failed:', error.code || error.name);
-      json(res, status, { error: status === 500 ? 'Internal server error.' : error.message });
+      json(res, status, { error: status === 500 ? 'Internal server error.' : error.code==='ENOSPC'?'Storage space unavailable.':error.message });
     }
   });
+  const cleanup=setInterval(()=>storage.collectAbandoned().catch(error=>console.error('Petal storage cleanup failed:',error.code||error.name)),3600000).unref();
   server.on('listening', () => { if (!base) base = `http://127.0.0.1:${server.address().port}`; });
-  server.on('close', () => { clearInterval(sweep); db.close(); });
+  server.on('close', () => { clearInterval(sweep); clearInterval(cleanup); db.close(); });
   server.maxConnections = 200;
   return { server, root, db, get publicUrl() { return base; } };
 }
