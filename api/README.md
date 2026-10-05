@@ -189,3 +189,14 @@ API tests use real local HTTP requests and a synthetic mod fixture. They cover
 accounts, ownership, private submissions, approval, search filtering, actual
 launcher installation and checksum verification, dependencies, unpublishing,
 invalid uploads, size limits, origin restrictions, and blocked download origins.
+
+## API contract and scoped integrations
+
+Open `/api` for the integration guide and `/openapi.yaml` for the validated
+OpenAPI 3.1 contract. Account sessions can create bounded, revocable `ptl_`
+tokens from `/account`. The token is displayed once. Scopes grant project reads
+and writes, account reads, or community/report actions; they cannot moderate or
+change account security. New content lists use stable cursor pagination with
+1–100 records per page. Public search keeps offset/limit fields and rejects
+invalid bounds. Error responses use application/problem+json with requestId;
+the legacy error property mirrors detail.

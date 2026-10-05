@@ -20,6 +20,8 @@ const {createAccountRoutes}=require('./routes/auth.cjs');
 const {createProjects}=require('./projects.cjs');
 const {createModeration}=require('./moderation.cjs');
 const {createProjectRoutes}=require('./routes/projects.cjs');
+const {createTokens}=require('./tokens.cjs');
+const {page}=require('./pagination.cjs');
 const text = (value, label, max = 200) => {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail(400, `Invalid ${label}.`);
   return value.trim();
@@ -60,7 +62,8 @@ async function createPetalServer(options = {}) {
   const mail=options.mail||createMail({root,publicMode,getBase:()=>base});
   const accounts=createAccounts({db,mail,publicMode,key:Buffer.from(mfaKey,'hex'),now});
   const auth=createAuth({db,adminToken,publicMode,now});
-  const accountRoutes=createAccountRoutes({db,accounts,auth,publicMode});
+  const tokens=createTokens({db,now});
+  const accountRoutes=createAccountRoutes({db,accounts,auth,tokens,publicMode,now});
   const projects=createProjects({db,auth});
   const moderationService=createModeration({db,auth,projects});
   const maxUpload = options.maxUploadBytes || Number(process.env.PETAL_API_UPLOAD_MB || 64) * 1024 * 1024;
@@ -99,6 +102,7 @@ async function createPetalServer(options = {}) {
   };
 
   const server = http.createServer({ requestTimeout: 120000, headersTimeout: 15000, maxHeaderSize: 16384 }, async (req, res) => {
+    const requestId=randomUUID();res.setHeader('X-Request-ID',requestId);let requestPath='/';
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -106,15 +110,18 @@ async function createPetalServer(options = {}) {
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     try {
       const url = new URL(req.url, 'http://localhost'), route = url.pathname;
+      requestPath=route;
       limit(req, route.startsWith('/v1/auth/') || route.includes('/mfa/') || route==='/v1/me/email');
       if (req.headers.origin && req.headers.origin !== base && !['GET', 'HEAD'].includes(req.method)) fail(403, 'Cross-origin writes are not allowed.');
       if(req.headers['sec-fetch-site']==='cross-site'&&!['GET','HEAD'].includes(req.method))fail(403,'Cross-origin writes are not allowed.');
       auth.validateCSRF(req);
-      if(await accountRoutes(req,res,route))return;
-      if(await projectRoutes(req,res,route))return;
+      auth.validateScopes(req,route);
+      if(await accountRoutes(req,res,route,url))return;
+      if(await projectRoutes(req,res,route,url))return;
       if (req.method === 'GET' && route === '/health') return json(res, 200, { status: 'ok', service: 'Petal API', version: '1' });
+      if(req.method==='GET'&&route==='/openapi.yaml'){res.writeHead(200,{'Content-Type':'application/yaml; charset=utf-8'});return res.end(await fs.readFile(path.join(__dirname,'openapi.yaml')));}
       if (req.method === 'GET' && route === '/v1/game/versions') return json(res,200,await metadata.versions());
-      const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/account':'account.html','/account.js':'account.js','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/project.js':'project.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};
+      const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/account':'account.html','/api':'api-docs.html','/account.js':'account.js','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/project.js':'project.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};
       if (req.method === 'GET' && Object.hasOwn(assets,route)) {
         const filename=assets[route];
         const data=await fs.readFile(route==='/minecraft-panorama.png'?path.join(__dirname,filename):path.join(__dirname,'public',filename));
@@ -123,7 +130,8 @@ async function createPetalServer(options = {}) {
       }
       if (req.method === 'GET' && route === '/v1/me/projects') {
         const user = requireUser(req);
-        return json(res, 200, { projects: db.prepare("SELECT * FROM projects WHERE ownerId=? OR EXISTS(SELECT 1 FROM members m WHERE m.projectId=projects.id AND m.userId=? AND m.status='accepted') ORDER BY createdAt DESC LIMIT 100").all(user.id,user.id).map(row=>({...projectView(row),teamRole:projects.role(user,row)})) });
+        const result=page(db,"SELECT * FROM projects WHERE (ownerId=? OR EXISTS(SELECT 1 FROM members m WHERE m.projectId=projects.id AND m.userId=? AND m.status='accepted'))",[user.id,user.id],url);
+        result.items=result.items.map(row=>({...projectView(row),teamRole:projects.role(user,row)}));return json(res,200,{...result,projects:result.items});
       }
       if (req.method === 'POST' && route === '/v1/projects') {
         const user = requireUser(req); auth.requirePermission(user,'publish'); if (user.localOperator) fail(400, 'Create projects using an author account.');
@@ -146,9 +154,8 @@ async function createPetalServer(options = {}) {
         const sort=url.searchParams.get('sort')||'newest';
         if(!['newest','downloads'].includes(sort))fail(400,'Invalid search sort.');
         const q = (url.searchParams.get('q') || '').slice(0, 200).replace(/[\\%_]/g, '\\$&');
-        const offset = Math.min(100000, Math.max(0, Number(url.searchParams.get('offset')) || 0));
-        const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 20));
-        if (!Number.isInteger(offset) || !Number.isInteger(pageSize)) fail(400, 'Invalid pagination.');
+        const offset = Number(url.searchParams.get('offset')??0),pageSize=Number(url.searchParams.get('limit')??20);
+        if (!Number.isSafeInteger(offset)||offset<0||offset>100000||!Number.isSafeInteger(pageSize)||pageSize<1||pageSize>100) fail(400, 'Invalid pagination.');
         const params = [`%${q}%`, `%${q}%`];
         let filters = "v.projectId=p.id AND v.status='published'";
         for (const [parameter, column] of [['version', 'gameVersions'], ['loader', 'loaders']]) {
@@ -166,9 +173,11 @@ async function createPetalServer(options = {}) {
         if (!p) fail(404, 'Project not found.');
         const user = userFor(req), owner = user?.admin || !!projects.role(user,p);
         if (req.method === 'GET') {
-          const rows = db.prepare(`SELECT * FROM versions WHERE projectId=? ${owner ? '' : "AND status='published'"} ORDER BY createdAt DESC, id DESC`).all(id);
-          if (!owner && !rows.length) fail(404, 'Project not found.');
-          return json(res, 200, projectRoute[2] ? { versions: rows.map(v=>versionView(v,!!owner)) } : projectView(p));
+          if(!owner&&!projects.publicProject(id))fail(404,'Project not found.');
+          if(!projectRoute[2])return json(res,200,projectView(p));
+          let query=`SELECT * FROM versions WHERE projectId=? ${owner?'':"AND status='published'"}`;const params=[id];
+          for(const [parameter,column] of [['version','gameVersions'],['loader','loaders']])if(url.searchParams.has(parameter)){query+=` AND EXISTS(SELECT 1 FROM json_each(${column}) WHERE value=?)`;params.push(url.searchParams.get(parameter));}
+          const result=page(db,query,params,url);result.items=result.items.map(v=>versionView(v,!!owner));return json(res,200,{...result,versions:result.items});
         }
         if (req.method === 'POST' && projectRoute[2]) {
           const publisher=requireUser(req); auth.requirePermission(publisher,'publish'); ownProject(req, id); const data = await body(req);
@@ -249,8 +258,7 @@ async function createPetalServer(options = {}) {
       if (req.method === 'GET' && route === '/v1/admin/reviews') {
         requireAdmin(req); const status = url.searchParams.get('status') || 'pending';
         if (!['pending', 'published', 'rejected'].includes(status)) fail(400, 'Invalid review status.');
-        const versions = db.prepare('SELECT * FROM versions WHERE status=? ORDER BY createdAt DESC LIMIT 100').all(status).map(v => ({ ...versionView(v,true), project: projectView(db.prepare('SELECT * FROM projects WHERE id=?').get(v.projectId)) }));
-        return json(res, 200, { versions });
+        const result=page(db,'SELECT * FROM versions WHERE status=?',[status],url);result.items=result.items.map(v=>({...versionView(v,true),project:projectView(projects.get(v.projectId))}));return json(res,200,{...result,versions:result.items});
       }
       const rescan=/^\/v1\/admin\/versions\/([a-f0-9-]{36})\/scan$/.exec(route);
       if(req.method==='POST'&&rescan){
@@ -291,14 +299,16 @@ async function createPetalServer(options = {}) {
         const offset=Number(url.searchParams.get('offset')||0);
         if(!Number.isInteger(offset)||offset<0||offset>100000)fail(400,'Invalid pagination.');
         const projects=db.prepare(`SELECT * FROM projects WHERE ${where} ORDER BY createdAt DESC,id LIMIT 20 OFFSET ?`).all(user.id,offset).map(projectView);
-        res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return res.end(authorPage(user.username,projects,total));
+        res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return res.end(authorPage(user.username,projects,total,offset));
       }
       fail(404, 'Endpoint not found.');
     } catch (error) {
       if (res.headersSent || res.destroyed) { if (!res.destroyed) res.destroy(); return; }
       const status = error.code==='ENOSPC'?507:error.status || 500;
-      if (status >= 500 && status !== 507) console.error('Petal API request failed:', error.code || error.name);
-      json(res, status, { error: status === 500 ? 'Internal server error.' : error.code==='ENOSPC'?'Storage space unavailable.':error.message });
+      const code=({400:'invalid_request',401:'authentication_required',403:'permission_denied',404:'not_found',409:'conflict',411:'length_required',413:'limit_exceeded',415:'unsupported_media',429:'rate_limited',500:'internal_error',503:'unavailable',507:'storage_unavailable'})[status]||'request_failed';
+      const detail=status===500?'Internal server error.':error.code==='ENOSPC'?'Storage space unavailable.':error.message;
+      if(status>=500)console.error(JSON.stringify({event:'request.failed',requestId,status,code}));
+      json(res,status,{type:'about:blank',title:http.STATUS_CODES[status]||'Request failed',status,detail,instance:requestPath,code,requestId,error:detail},'application/problem+json');
     }
   });
   const cleanup=setInterval(()=>storage.collectAbandoned().catch(error=>console.error('Petal storage cleanup failed:',error.code||error.name)),3600000).unref();

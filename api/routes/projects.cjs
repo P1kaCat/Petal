@@ -1,12 +1,13 @@
 const path=require('node:path'),fs=require('node:fs/promises');
 const {randomUUID}=require('node:crypto');
 const {body,json,fail}=require('../http.cjs');
+const {page}=require('../pagination.cjs');
 function createProjectRoutes({db,root,auth,projects,storage,moderation}){
   const user=req=>{const p=auth.authenticate(req);if(!p)fail(401,'Sign in to continue.');return p;};
   const audit=(p,action,id)=>db.prepare('INSERT INTO audit VALUES(?,?,?,?,?)').run(randomUUID(),p.id,action,id,Date.now());
-  return async(req,res,route)=>{
+  return async(req,res,route,url)=>{
     if(req.method==='GET'&&route==='/v1/me/invitations'){
-      const p=user(req);json(res,200,{invitations:db.prepare("SELECT m.projectId,m.role,p.title FROM members m JOIN projects p ON p.id=m.projectId WHERE m.userId=? AND m.status='invited' ORDER BY m.projectId LIMIT 100").all(p.id)});return true;
+      const p=user(req),result=page(db,"SELECT m.projectId,m.role,p.title FROM members m JOIN projects p ON p.id=m.projectId WHERE m.userId=? AND m.status='invited'",[p.id],url,{keys:['m.projectId']});json(res,200,{...result,invitations:result.items});return true;
     }
     const withdraw=/^\/v1\/versions\/([a-f0-9-]{36})\/withdraw$/.exec(route);
     if(req.method==='POST'&&withdraw){
@@ -21,10 +22,10 @@ function createProjectRoutes({db,root,auth,projects,storage,moderation}){
       const [,id,action]=projectRoute,p=user(req);
       if(action==='revisions'){
         if(req.method==='POST'){json(res,201,await projects.proposeRevision(p,id,await body(req)));return true;}
-        if(req.method==='GET'){projects.requireAccess(p,id,'read');json(res,200,{revisions:db.prepare('SELECT * FROM revisions WHERE projectId=? ORDER BY createdAt DESC,id DESC LIMIT 100').all(id).map(projects.revisionView)});return true;}
+        if(req.method==='GET'){projects.requireAccess(p,id,'read');const result=page(db,'SELECT * FROM revisions WHERE projectId=?',[id],url);result.items=result.items.map(projects.revisionView);json(res,200,{...result,revisions:result.items});return true;}
       }
       if(action==='members'){
-        if(req.method==='GET'){projects.requireAccess(p,id,'read');json(res,200,{members:db.prepare('SELECT u.id,u.username,m.role,m.status FROM members m JOIN users u ON u.id=m.userId WHERE projectId=? ORDER BY u.username LIMIT 100').all(id)});return true;}
+        if(req.method==='GET'){projects.requireAccess(p,id,'read');const result=page(db,'SELECT u.id,u.username,m.role,m.status FROM members m JOIN users u ON u.id=m.userId WHERE projectId=?',[id],url,{keys:['u.username','u.id'],direction:'ASC'});json(res,200,{...result,members:result.items});return true;}
         if(req.method==='POST'){
           const project=projects.requireAccess(p,id,'owner'),input=await body(req);
           if(!['maintainer','contributor'].includes(input.role)||typeof input.username!=='string')fail(400,'Choose a member and role.');
@@ -67,7 +68,7 @@ function createProjectRoutes({db,root,auth,projects,storage,moderation}){
     }
     const review=/^\/v1\/admin\/revisions\/([a-f0-9-]{36})\/review$/.exec(route);
     if(req.method==='POST'&&review){json(res,200,await moderation.decide(user(req),{...await body(req),revisionId:review[1]}));return true;}
-    if(req.method==='GET'&&route==='/v1/admin/revisions'){auth.requirePermission(user(req),'moderate');json(res,200,{revisions:db.prepare("SELECT * FROM revisions WHERE status='pending' ORDER BY createdAt,id LIMIT 100").all().map(row=>({...projects.revisionView(row),projectTitle:projects.get(row.projectId).title}))});return true;}
+    if(req.method==='GET'&&route==='/v1/admin/revisions'){auth.requirePermission(user(req),'moderate');const result=page(db,"SELECT * FROM revisions WHERE status='pending'",[],url,{direction:'ASC'});result.items=result.items.map(row=>({...projects.revisionView(row),projectTitle:projects.get(row.projectId).title}));json(res,200,{...result,revisions:result.items});return true;}
     if(req.method==='POST'&&route==='/v1/reports'){
       const p=user(req),input=await body(req);if(typeof input.projectId!=='string'||!projects.publicProject(input.projectId))fail(404,'Published project not found.');
       if(typeof input.reason!=='string'||!input.reason.trim()||input.reason.length>2000)fail(400,'Provide a report reason.');
@@ -76,7 +77,7 @@ function createProjectRoutes({db,root,auth,projects,storage,moderation}){
     }
     const reportRoute=/^\/v1\/reports\/([a-f0-9-]{36})$/.exec(route);
     if(req.method==='GET'&&reportRoute){const p=user(req),row=db.prepare('SELECT * FROM reports WHERE id=? AND reporterId=?').get(reportRoute[1],p.id);if(!row)fail(404,'Report not found.');json(res,200,row);return true;}
-    if(req.method==='GET'&&route==='/v1/admin/reports'){auth.requirePermission(user(req),'moderate');json(res,200,{reports:db.prepare("SELECT * FROM reports WHERE status='open' ORDER BY createdAt,id LIMIT 100").all()});return true;}
+    if(req.method==='GET'&&route==='/v1/admin/reports'){auth.requirePermission(user(req),'moderate');const result=page(db,"SELECT * FROM reports WHERE status='open'",[],url,{direction:'ASC'});json(res,200,{...result,reports:result.items});return true;}
     const resolve=/^\/v1\/admin\/reports\/([a-f0-9-]{36})$/.exec(route);
     if(req.method==='POST'&&resolve){const p=user(req);auth.requirePermission(p,'moderate');const input=await body(req);if(typeof input.resolution!=='string'||!input.resolution.trim()||input.resolution.length>2000)fail(400,'Provide a resolution.');if(!db.prepare("UPDATE reports SET status='closed',resolution=? WHERE id=? AND status='open'").run(input.resolution.trim(),resolve[1]).changes)fail(409,'Report is no longer open.');audit(p,'report.closed',resolve[1]);json(res,200,{ok:true});return true;}
     return false;

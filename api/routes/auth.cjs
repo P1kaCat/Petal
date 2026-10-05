@@ -1,8 +1,16 @@
 const {body,json,fail}=require('../http.cjs');
-function createAccountRoutes({db,accounts,auth,publicMode}){
+const {page}=require('../pagination.cjs');
+function createAccountRoutes({db,accounts,auth,tokens,publicMode,now=Date.now}){
   const requireUser=req=>{const p=auth.authenticate(req);if(!p||p.localOperator)fail(401,'Sign in using an account.');return p;};
   const cookie=(res,token,clear=false)=>res.setHeader('Set-Cookie',`petal_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${clear?0:86400}${publicMode?'; Secure':''}`);
-  return async (req,res,route)=>{
+  return async (req,res,route,url)=>{
+    if(route==='/v1/me/tokens'){
+      const principal=auth.authenticate(req);tokens.requireSession(principal);
+      if(req.method==='POST'){json(res,201,tokens.issueScopedToken(principal,await body(req)));return true;}
+      if(req.method==='GET'){const result=page(db,'SELECT id,name,scopes,expiresAt,createdAt FROM api_tokens WHERE userId=?',[principal.id],url);result.items=result.items.map(row=>({...row,scopes:JSON.parse(row.scopes)}));json(res,200,result);return true;}
+    }
+    const tokenRevoke=/^\/v1\/me\/tokens\/([a-f0-9-]{36})$/.exec(route);
+    if(req.method==='DELETE'&&tokenRevoke){json(res,200,tokens.revokeScopedToken(auth.authenticate(req),tokenRevoke[1]));return true;}
     if(req.method==='GET'&&route==='/v1/auth/capabilities'){json(res,200,{localOperator:!publicMode&&!db.prepare("SELECT 1 FROM operator_settings WHERE key='bootstrap'").get()});return true;}
     if(req.method==='POST'&&['/v1/auth/register','/v1/auth/login'].includes(route)){
       const input=await body(req);
@@ -22,7 +30,7 @@ function createAccountRoutes({db,accounts,auth,publicMode}){
       const p=requireUser(req);json(res,200,{user:accounts.view(db.prepare('SELECT * FROM users WHERE id=?').get(p.id)),csrf:p.kind==='cookie'?p.csrf:undefined,sessionId:p.sessionId});return true;
     }
     if(req.method==='GET'&&route==='/v1/me/sessions'){
-      const p=requireUser(req);const sessions=db.prepare('SELECT id,expires,createdAt,kind FROM sessions WHERE userId=? AND expires>? ORDER BY createdAt DESC LIMIT 100').all(p.id,Date.now());json(res,200,{sessions});return true;
+      const p=requireUser(req),result=page(db,'SELECT id,expires,createdAt,kind FROM sessions WHERE userId=? AND expires>?',[p.id,now()],url);json(res,200,{...result,sessions:result.items});return true;
     }
     const revoke=/^\/v1\/me\/sessions\/([a-f0-9-]{36})$/.exec(route);
     if(req.method==='DELETE'&&revoke){json(res,200,await accounts.revokeSession(requireUser(req).id,revoke[1]));return true;}

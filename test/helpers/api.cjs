@@ -25,7 +25,7 @@ async function setup(t, options = {}) {
   t.after(async () => { service.server.closeAllConnections(); await new Promise(resolve => service.server.close(resolve)); await fs.rm(root, { recursive: true, force: true }); });
   const request = async (route, { method = 'GET', token, body, binary = false, headers = {} } = {}) => {
     const response = await fetch(`http://127.0.0.1:${service.server.address().port}` + route, { method, headers: { ...(token ? { Authorization: 'Bearer ' + token } : {}), ...(body ? { 'Content-Type': binary ? 'application/java-archive' : 'application/json' } : {}), ...headers }, body: body ? (binary ? body : JSON.stringify(body)) : undefined });
-    return { status: response.status, data: response.headers.get('content-type')?.includes('application/json') ? await response.json() : await response.arrayBuffer(), headers: response.headers };
+    return { status: response.status, data: response.headers.get('content-type')?.includes('json') ? await response.json() : await response.arrayBuffer(), headers: response.headers };
   };
   const author = async username => (await request('/v1/auth/register', { method: 'POST', body: { username, password: 'test-only-password-1234' } })).data.token;
   const project = async (token, slug = 'my-mod') => (await request('/v1/projects', { method: 'POST', token, body: { slug, title: slug, description: 'A test mod for the Petal workflow.', license: 'MIT' } })).data;

@@ -141,3 +141,13 @@ unsafe archive paths, crash orphan reconciliation, ENOSPC cancellation, seven-da
 withdrawal retention and pinned published references. A synthetic ClamAV socket
 verified INSTREAM framing and detection; public scanner failure stayed private,
 then retry and review succeeded. A real scanner daemon remains unverified.
+
+## API contract checkpoint
+
+63 full tests passed, including scoped-token expiry/revocation/escalation denial,
+cursor bounds and schema validation of representative account, project, release,
+page and error responses with Ajv. OpenAPI 3.1 lint completed without warnings via
+pnpm dlx --package=@redocly/cli redocly lint api/openapi.yaml. Existing API tests
+again downloaded an approved local fixture through the actual launcher catalog
+and verified its SHA-512. No approved CurseForge key was available for a real
+CurseForge file download.

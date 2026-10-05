@@ -39,6 +39,7 @@
     "yauzl": "3.4.0"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
     "electron": "^44.5.1",
     "electron-builder": "^26.15.3"
   }

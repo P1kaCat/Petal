@@ -60,7 +60,7 @@ class Catalog {
   async resolve(source, id, profile, versionId) {
     if (source === 'petal') {
       const project = await this.petal(`/projects/${encodeURIComponent(id)}`);
-      const versions = versionId ? [await this.petal(`/versions/${encodeURIComponent(versionId)}`)] : (await this.petal(`/projects/${encodeURIComponent(id)}/versions`)).versions;
+      const versions = versionId ? [await this.petal(`/versions/${encodeURIComponent(versionId)}`)] : (await this.petal(`/projects/${encodeURIComponent(id)}/versions?version=${encodeURIComponent(profile.version)}&loader=${encodeURIComponent(profile.loader)}&limit=100`)).versions;
       const v = versions.find(v => v.projectId === id && v.status === 'published' && v.gameVersions.includes(profile.version) && v.loaders.includes(profile.loader));
       if (!v) throw new Error(`No published compatible Petal version for ${project.title}.`);
       if (!v.file || v.file.algorithm !== 'sha512' || !/^[a-f0-9]{128}$/i.test(v.file.hash) || !isPetalDownload(new URL(v.file.url), this.petalUrl) || new URL(v.file.url).pathname !== `/v1/versions/${v.id}/download`) throw new Error('Invalid Petal download metadata.');

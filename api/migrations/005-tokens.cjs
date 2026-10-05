@@ -1,0 +1,1 @@
+module.exports={version:5,apply(db){db.exec(`CREATE TABLE api_tokens(id TEXT PRIMARY KEY,userId TEXT NOT NULL REFERENCES users(id),hash TEXT UNIQUE NOT NULL,name TEXT NOT NULL,scopes TEXT NOT NULL,expiresAt INTEGER NOT NULL,createdAt INTEGER NOT NULL);CREATE INDEX token_owner ON api_tokens(userId,createdAt,id);`);}};
