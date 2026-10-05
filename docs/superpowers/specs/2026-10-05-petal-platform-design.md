@@ -1,7 +1,7 @@
 # Petal platform design
 
 Date: 2026-10-05  
-Status: Proposed for user review. This document does not claim implementation completion.  
+Status: Approved by the user on 2026-10-05; implementation plan review pending. This document does not claim implementation completion.  
 Scope: Minecraft Java launcher, mod platform, author accounts, website, API, and Bloom deployment compatibility.
 
 ## 1. Intent and constraints
