@@ -38,13 +38,20 @@ async function exclusive(operation) {
 function editable(id) { if (running.has(id)) throw new Error('Close Minecraft before modifying this profile.'); return store.profile(id); }
 const handlers = {
   state: () => snapshot(),
-  versions: async () => (await metadata.versions()).versions.map(v => v.id),
+  versions: options => {
+    if (options.refresh !== undefined && typeof options.refresh !== 'boolean') throw new Error('Invalid refresh option.');
+    return metadata.versions({refresh:options.refresh});
+  },
+  loaders: options => {
+    if(typeof options.version !== 'string' || (options.includePrerelease !== undefined && typeof options.includePrerelease !== 'boolean')) throw new Error('Invalid loader selection.');
+    return metadata.loaderCatalog(options.version,{includePrerelease:options.includePrerelease});
+  },
   search: options => {
     const p = options.profileId ? store.profile(options.profileId) : null;
     return catalog.search({ ...options, version: p?.version, loader: p?.loader });
   },
   createProfile: options => exclusive(async () => {
-    if (!(await metadata.versions()).versions.some(v => v.id === options.version)) throw new Error('Minecraft version is missing from the official manifest.');
+    await metadata.assertSelection(options);
     return store.create(options);
   }),
   install: ({ profileId, source, id }) => exclusive(() => { editable(profileId); return installMods(store, catalog, profileId, source, id, notify); }),
@@ -73,6 +80,7 @@ const handlers = {
   }),
   importJar: ({ profileId }) => exclusive(async () => {
     const p = editable(profileId);
+    if(p.loader === 'vanilla') throw new Error('Vanilla cannot load mods. Create a profile with a compatible mod loader.');
     const result = await dialog.showOpenDialog(win, { title: 'Import a manually downloaded mod', filters: [{ name: 'Minecraft mod', extensions: ['jar'] }], properties: ['openFile'] });
     if (result.canceled) return;
     const sourcePath = result.filePaths[0], name = safeFilename(path.basename(sourcePath));
@@ -196,7 +204,9 @@ else {
         throw new Error(`UI test timed out: ${expression}`);
       }
       if (!store.data.profiles.length) {
-        await win.webContents.executeJavaScript("document.querySelector('[data-action=create]').click(); document.querySelector('#profile-name').value='Cherry adventure'; document.querySelector('#create-form').requestSubmit()");
+        await win.webContents.executeJavaScript("document.querySelector('[data-action=create]').click(); document.querySelector('#profile-name').value='Cherry adventure'");
+        await until("!!document.querySelector('#profile-loader-version option') && !document.querySelector('#create-form button[type=submit]').disabled");
+        await win.webContents.executeJavaScript("document.querySelector('#create-form').requestSubmit()");
         await until("!!document.querySelector('.profile-detail')");
       } else {
         await win.webContents.executeJavaScript("document.querySelector('[data-view=profiles]').click()");
@@ -230,6 +240,12 @@ else {
       checks.push({ name: 'Unknown IPC method rejected', success: await win.webContents.executeJavaScript("window.petal.call('unknown').then(()=>false).catch(()=>true)") });
       await win.webContents.executeJavaScript("document.querySelector('#dismiss-notice').click()");
       await captureUI('settings.png');
+      await win.webContents.executeJavaScript("document.querySelector('[data-action=create]')?.click() || document.querySelector('#sidebar-create').click(); document.querySelector('#version-category').value='snapshot'; document.querySelector('#version-category').dispatchEvent(new Event('change')); document.querySelector('#profile-version').value='24w14a'; document.querySelector('#profile-version').dispatchEvent(new Event('input'))");
+      await until("!!document.querySelector('#profile-loader-version option') && !document.querySelector('#create-form button[type=submit]').disabled");
+      checks.push({name:'Snapshot category and compatible runtime selector',success:await win.webContents.executeJavaScript("document.querySelector('#minecraft-versions option[value=\"24w14a\"]') !== null && [...document.querySelector('#profile-loader').options].some(o=>o.value==='vanilla')")});
+      checks.push({name:'Invalid loader IPC arguments rejected',success:await win.webContents.executeJavaScript("window.petal.call('loaders',{version:5}).then(()=>false).catch(()=>true)")});
+      await captureUI('create-profile.png');
+      await win.webContents.executeJavaScript("document.querySelector('#create-dialog').close()");
       await win.webContents.executeJavaScript("document.querySelector('[data-view=discover]').click()");
       await until("!!document.querySelector('.mod-card') && !document.querySelector('.loading')");
       await captureUI('preview.png');

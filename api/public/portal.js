@@ -92,3 +92,4 @@ $('#search-form').addEventListener('submit', e => { e.preventDefault(); perform(
   try { if (session) { if (session.admin) await loadReviews(); else await loadMine(); } } catch { saveSession(null); notice('Your session has expired. Sign in again.', true); }
   try { await search(); } catch (error) { notice(error.message, true); }
 })();
+fetch('/v1/game/versions').then(r=>r.json()).then(data=>{ document.querySelector('#game-versions').innerHTML=(data.versions||[]).map(v=>'<option value=' + JSON.stringify(v.id).replaceAll('<','&lt;') + '></option>').join(''); }).catch(()=>{});

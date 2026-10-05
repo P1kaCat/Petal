@@ -3,13 +3,14 @@ const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { safeFilename } = require('./store.cjs');
 const { isPetalDownload } = require('./petal-url.cjs');
-async function download(file, fetcher = fetch, petalBaseUrl = '') {
+async function download(file, fetcher = fetch, petalBaseUrl = '', curseforgeKey = '') {
   const url = new URL(file.url);
   const trustedCDN = url.protocol === 'https:' && ['cdn.modrinth.com', 'mediafilez.forgecdn.net', 'edge.forgecdn.net', 'media.forgecdn.net'].includes(url.hostname);
   if (!trustedCDN && !isPetalDownload(url, petalBaseUrl)) throw new Error('Download URL not allowed.');
   safeFilename(file.name);
   if (!file.hash || !['sha1', 'sha512'].includes(file.algorithm)) throw new Error('Missing file checksum.');
-  const response = await fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(180000) });
+  const headers = url.protocol === 'https:' && url.hostname === 'edge.forgecdn.net' && curseforgeKey ? {'x-api-key':curseforgeKey} : {};
+  const response = await fetcher(url, { redirect: 'error', headers, signal: AbortSignal.timeout(180000) });
   if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}.`);
   const chunks = []; let size = 0;
   for await (const chunk of response.body) { size += chunk.length; if (size > 256 * 1024 * 1024) throw new Error('File too large (256 MB limit).'); chunks.push(chunk); }
@@ -55,6 +56,7 @@ async function planInstall(catalog, profile, source, id) {
 }
 async function installMods(store, catalog, profileId, source, id, notify = () => {}, fetcher = fetch) {
   const profile = store.profile(profileId);
+  if(profile.loader === 'vanilla') throw new Error('Vanilla cannot load mods. Create a profile with a compatible mod loader.');
   const plan = await planInstall(catalog, profile, source, id);
   const modsDir = path.join(store.directory(profileId), 'mods');
   const stage = path.join(store.directory(profileId), `.install-${randomUUID()}`);
@@ -66,7 +68,7 @@ async function installMods(store, catalog, profileId, source, id, notify = () =>
       const target = path.join(modsDir, safeFilename(mod.file.name));
       const owner = original.find(m => m.file.name.toLowerCase() === mod.file.name.toLowerCase());
       try { await fs.access(target); if (!owner || owner.source !== mod.source || owner.id !== mod.id) throw new Error(`The file ${mod.file.name} already exists and belongs to another mod.`); } catch (e) { if (e.code !== 'ENOENT') throw e; }
-      await fs.writeFile(path.join(stage, mod.file.name), await download(mod.file, fetcher, mod.source === 'petal' ? catalog.petalUrl : ''));
+      await fs.writeFile(path.join(stage, mod.file.name), await download(mod.file, fetcher, mod.source === 'petal' ? catalog.petalUrl : '', mod.source === 'curseforge' ? catalog.getKey?.() : ''));
     }
     for (const mod of plan) {
       const old = original.find(m => m.source === mod.source && m.id === mod.id);

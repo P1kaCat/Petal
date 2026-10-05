@@ -41,11 +41,15 @@ class MinecraftMetadata {
     try { return await this.pending; } finally { this.pending = null; }
   }
   async loaders(version, options = {}) {
+    return (await this.loaderCatalog(version, options)).choices;
+  }
+  async loaderCatalog(version, options = {}) {
     if (!(await this.versions()).versions.some(v => v.id === version)) throw new Error('Minecraft version is missing from the official manifest.');
     const { getLoader } = require('./loaders/index.cjs');
-    const settled = await Promise.allSettled(['vanilla','fabric','forge','neoforge','quilt'].map(id => getLoader(id, { fetcher: this.fetcher }).list(version, options)));
+    const ids = ['vanilla','fabric','forge','neoforge','quilt'];
+    const settled = await Promise.allSettled(ids.map(id => getLoader(id, { fetcher: this.fetcher }).list(version, options)));
     const choices = settled.flatMap(result => result.status === 'fulfilled' ? result.value : []);
-    return choices;
+    return { choices, warnings: settled.flatMap((result,i)=>result.status==='rejected'?[`${ids[i]}: ${result.reason.message}`]:[]) };
   }
   async assertSelection({ version, loader, loaderVersion }) {
     if (!(await this.versions()).versions.some(v => v.id === version)) throw new Error('Minecraft version is missing from the official manifest.');

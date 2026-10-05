@@ -67,7 +67,8 @@ prepare the game, or open an instance folder from the same screen.
 | **Three catalogs** | Modrinth, authorized CurseForge integration, and the configured Petal server. |
 | **Petal hosting** | Own mod server, author accounts, private submissions, administrator review, and approved releases in the launcher. |
 | **Separate profiles** | Dedicated folders for each instance's saves, mods, and configuration. |
-| **Three mod loaders** | Automatic preparation for Fabric, Forge, and NeoForge. |
+| **Runtime choices** | Vanilla, Fabric, Forge, NeoForge, and Quilt with compatible loader version selection. |
+| **Official Minecraft catalog** | Releases, snapshots, historical beta and alpha versions, with cached metadata. |
 | **Minecraft + Java** | Game files and the required Java runtime downloaded from official services. |
 | **Dependency handling** | Required dependencies, declared incompatibility checks, and file checksum verification. |
 | **Mod management** | Install, enable, disable, remove, update, and manually import `.jar` files. |

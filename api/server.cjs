@@ -9,6 +9,7 @@ const { pipeline } = require('node:stream/promises');
 const { DatabaseSync } = require('node:sqlite');
 const yauzl = require('yauzl');
 const { safeFilename } = require('../src/store.cjs');
+const { MinecraftMetadata, validVersionId } = require('../src/minecraft-metadata.cjs');
 const derive = promisify(scrypt);
 const digest = value => createHash('sha256').update(value).digest('hex');
 const fail = (status, message) => { throw Object.assign(new Error(message), { status }); };
@@ -27,20 +28,21 @@ async function validateJar(filename) {
     for await (const entry of zip.eachEntry()) {
       expanded += entry.uncompressedSize;
       if (++count > 30000 || expanded > 1024 * 1024 * 1024 || entry.isEncrypted()) fail(400, 'Archive is encrypted or exceeds archive limits.');
-      if (['fabric.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml', 'mcmod.info'].includes(entry.fileName)) descriptor = true;
+      if (['fabric.mod.json', 'quilt.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml', 'mcmod.info'].includes(entry.fileName)) descriptor = true;
       // Read each entry without extracting it; verify structure and declared sizes.
       if (!entry.fileName.endsWith('/')) {
         const stream = await zip.openReadStreamPromise(entry);
         for await (const chunk of stream) { void chunk; }
       }
     }
-    if (!descriptor) fail(400, 'The JAR needs a Fabric, Forge, or NeoForge mod descriptor.');
+    if (!descriptor) fail(400, 'The JAR needs a Fabric, Quilt, Forge, or NeoForge mod descriptor.');
   } catch (error) { if (error.status) throw error; fail(400, 'Invalid or damaged mod JAR archive.'); }
   finally { zip?.close(); }
 }
 
 async function createPetalServer(options = {}) {
   const root = path.resolve(options.dataDir || process.env.PETAL_API_DATA_DIR || path.join(__dirname, 'data'));
+  const metadata = options.metadata || new MinecraftMetadata({cacheFile:path.join(root,'minecraft-versions.json')});
   await fs.mkdir(path.join(root, 'files'), { recursive: true });
   await fs.mkdir(path.join(root, 'incoming'), { recursive: true });
   let adminToken = options.adminToken || process.env.PETAL_ADMIN_TOKEN;
@@ -128,6 +130,7 @@ async function createPetalServer(options = {}) {
       limit(req, route.startsWith('/v1/auth/'));
       if (req.headers.origin && req.headers.origin !== base && !['GET', 'HEAD'].includes(req.method)) fail(403, 'Cross-origin writes are not allowed.');
       if (req.method === 'GET' && route === '/health') return json(res, 200, { status: 'ok', service: 'Petal API', version: '1' });
+      if (req.method === 'GET' && route === '/v1/game/versions') return json(res,200,await metadata.versions());
       if (req.method === 'GET' && ['/', '/portal.js', '/portal.css'].includes(route)) {
         const filename = route === '/' ? 'index.html' : route.slice(1);
         const data = await fs.readFile(path.join(__dirname, 'public', filename));
@@ -203,8 +206,12 @@ async function createPetalServer(options = {}) {
           ownProject(req, id); const data = await body(req);
           const name = text(data.name, 'version name', 100);
           const gameVersions = data.gameVersions, loaders = data.loaders;
-          if (!Array.isArray(gameVersions) || !gameVersions.length || gameVersions.length > 30 || gameVersions.some(v => typeof v !== 'string' || !/^\d+\.\d+(\.\d+)?$/.test(v))) fail(400, 'List supported Minecraft release versions.');
-          if (!Array.isArray(loaders) || !loaders.length || loaders.length > 3 || loaders.some(v => !['fabric', 'forge', 'neoforge'].includes(v))) fail(400, 'List supported mod loaders.');
+          if (!Array.isArray(gameVersions) || !gameVersions.length || gameVersions.length > 30 || gameVersions.some(v => !validVersionId(v))) fail(400, 'List supported official Minecraft versions.');
+          if (!Array.isArray(loaders) || !loaders.length || loaders.length > 4 || loaders.some(v => !['fabric', 'quilt', 'forge', 'neoforge'].includes(v))) fail(400, 'List supported mod loaders.');
+          for(const version of gameVersions) for(const loader of loaders) {
+            try { await metadata.assertSelection({version,loader}); }
+            catch(error) { fail(/unavailable|fetch|offline/i.test(error.message)?503:400,error.message); }
+          }
           if (data.rightsConfirmed !== true) fail(400, 'Confirm that you own this mod or have permission to distribute it.');
           let filename;
           try { filename = safeFilename(data.filename); } catch { fail(400, 'Invalid mod filename.'); }

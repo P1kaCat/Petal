@@ -79,3 +79,27 @@ were captured from the actual English preview using isolated artifact data.
 Author email verification/recovery, malware scanning and Docker/Bloom deployment
 are not yet verified. The server is a single-process local preview with moderated
 mod hosting; the full platform specification is a separate implementation effort.
+
+## Official versions and loader adapters
+
+The live Mojang manifest returned 917 validated version entries across release,
+snapshot, old_beta and old_alpha categories. The catalog is dynamic; this count
+is evidence from this check, not a fixed supported-version limit.
+
+Real isolated installations and complete launch-argument generation passed for:
+Vanilla 1.21.1, Vanilla 24w14a, Fabric 0.19.5, Forge 52.1.16,
+NeoForge 21.1.255 and Quilt 0.30.1 (all modded cases on Minecraft 1.21.1).
+These checks installed games, libraries and assets; they did not sign in or start
+an owned Minecraft session. Historical versions are discoverable; their full
+runtime behavior has not been exhaustively verified.
+
+NeoForge selection verifies published neoform Minecraft dependencies and exposes
+the latest 30 matching builds. Forge installers before Minecraft 1.6 are not
+offered. Loader metadata failure is visible in the profile dialog.
+
+The expanded 35-test suite passed. Source Electron smoke passed six checks,
+including snapshot selection and invalid loader IPC rejection. Delayed obsolete
+loader results are covered by race regression tests. The creator API accepts
+official snapshot IDs and Quilt descriptors. CurseForge edge CDN requests attach
+the key only to the exact HTTPS edge host, with redirects refused; an authorized
+CurseForge end-to-end download still requires a real approved API key.

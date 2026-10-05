@@ -88,7 +88,7 @@ function renderSettings() {
 function syncBusy() {
   document.querySelectorAll('[data-mutation], [data-action="install"]').forEach(b => {
     const p = profile(); const installed = b.dataset.action === 'install' && p?.mods.some(m => m.source === b.dataset.provider && m.id === b.dataset.id);
-    b.disabled = busy || !!installed || (view === 'profiles' && !!p && state.running.includes(p.id));
+    b.disabled = busy || !!installed || (p?.loader === 'vanilla' && ['install','import','update'].includes(b.dataset.action)) || (view === 'profiles' && !!p && state.running.includes(p.id));
   });
 }
 async function perform(operation, message) {
@@ -99,7 +99,44 @@ async function perform(operation, message) {
   finally { busy = false; syncBusy(); }
 }
 async function changeView(next) { view = next; await refresh(); render(); if (view === 'discover') search(); }
-function createDialog() { $('#dialog-error').textContent = ''; $('#create-dialog').showModal(); $('#profile-name').focus(); }
+let minecraftVersions=[], loaderChoices=[];
+const labels={vanilla:'Vanilla',fabric:'Fabric',forge:'Forge',neoforge:'NeoForge',quilt:'Quilt'};
+function versionOptions(){
+  const category=$('#version-category').value;
+  const visible=minecraftVersions.filter(v=>category==='all'||v.type===category);
+  $('#minecraft-versions').innerHTML=visible.map(v=>`<option value="${esc(v.id)}"></option>`).join('');
+  return visible;
+}
+function loaderOptions(){
+  const chosen=$('#profile-loader').value;
+  $('#profile-loader-version').innerHTML=loaderChoices.filter(v=>v.id===chosen).map(v=>`<option value="${esc(v.version)}">${esc(v.version)}${v.stable?'':' · prerelease'}</option>`).join('');
+  $('#create-form button[type=submit]').disabled=!$('#profile-loader-version').value;
+}
+const selections=new LatestSelection((version,includePrerelease)=>api.call('loaders',{version,includePrerelease}),result=>{
+  if(result.error){$('#dialog-error').textContent=result.error;$('#metadata-status').textContent='Loader metadata unavailable.';return;}
+  loaderChoices=result.data.choices;
+  const preferred=$('#profile-loader').value;
+  const ids=[...new Set(loaderChoices.map(v=>v.id))];
+  $('#profile-loader').innerHTML=ids.map(id=>`<option value="${id}">${labels[id]}</option>`).join('');
+  $('#profile-loader').value=ids.includes(preferred)?preferred:(ids.includes('fabric')?'fabric':ids[0]);
+  loaderOptions();
+  $('#metadata-status').textContent=result.data.warnings.length?result.data.warnings.join(' · '):'Compatible runtimes loaded.';
+});
+function refreshLoaders(){
+  $('#dialog-error').textContent='';$('#metadata-status').textContent='Checking compatible runtimes…';
+  $('#create-form button[type=submit]').disabled=true;$('#profile-loader-version').innerHTML='';
+  return selections.select($('#profile-version').value,$('#loader-prerelease').checked);
+}
+async function refreshVersions(refresh=false){
+  const result=await api.call('versions',{refresh});minecraftVersions=result.versions;versionOptions();
+  if(result.stale)$('#metadata-status').textContent='Using the saved Minecraft catalog. Refresh when connected.';
+}
+function createDialog() { $('#dialog-error').textContent = ''; $('#create-dialog').showModal(); $('#profile-name').focus(); refreshLoaders(); }
+$('#version-category').addEventListener('change',()=>{const visible=versionOptions();if(!visible.some(v=>v.id===$('#profile-version').value))$('#profile-version').value=visible[0]?.id||'';refreshLoaders();});
+$('#profile-version').addEventListener('input',refreshLoaders);
+$('#profile-loader').addEventListener('change',loaderOptions);
+$('#loader-prerelease').addEventListener('change',refreshLoaders);
+$('#refresh-versions').addEventListener('click',async()=>{try{await refreshVersions(true);await refreshLoaders();}catch(e){$('#dialog-error').textContent=e.message;}});
 document.addEventListener('click', async event => {
   const b = event.target.closest('button'); if (!b) return;
   if (b.dataset.view) return changeView(b.dataset.view);
@@ -128,7 +165,7 @@ $('#dismiss-notice').addEventListener('click', () => { $('#notice').hidden = tru
 $('#close-dialog').addEventListener('click', () => $('#create-dialog').close());
 $('#create-form').addEventListener('submit', async e => {
   e.preventDefault(); const submit = $('#create-form button[type="submit"]'); submit.disabled = true;
-  try { const p = await api.call('createProfile', { name: $('#profile-name').value, version: $('#profile-version').value, loader: $('#profile-loader').value }); selected = p.id; $('#create-dialog').close(); await changeView('profiles'); notice('Profile created. Add mods or install the game.'); }
+  try { const p = await api.call('createProfile', { name: $('#profile-name').value, version: $('#profile-version').value, loader: $('#profile-loader').value, loaderVersion:$('#profile-loader-version').value }); selected = p.id; $('#create-dialog').close(); await changeView('profiles'); notice('Profile created. Add mods or install the game.'); }
   catch (e) { $('#dialog-error').textContent = e.message; }
   finally { submit.disabled = false; }
 });
@@ -137,6 +174,6 @@ api.onEvent(async event => {
   if (event.type === 'gameExit') { await refresh(); render(); notice(event.code ? `Minecraft exited with code ${event.code}. Check the profile’s logs folder.` : 'Minecraft has closed.', !!event.code); }
 });
 (async () => {
-  try { await refresh(); render(); search(); const versions = await api.call('versions'); $('#minecraft-versions').innerHTML = versions.map(v => `<option value="${esc(v)}"></option>`).join(''); }
+  try { await refresh(); render(); search(); await refreshVersions(); }
   catch (e) { notice(e.message, true); }
 })();

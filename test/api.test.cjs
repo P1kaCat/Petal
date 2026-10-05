@@ -10,6 +10,12 @@ const { Catalog } = require('../src/catalog.cjs');
 const { Store } = require('../src/store.cjs');
 const { installMods, download } = require('../src/mods.cjs');
 const { petalOrigin } = require('../src/petal-url.cjs');
+const { MinecraftMetadata } = require('../src/minecraft-metadata.cjs');
+const fixtureMetadata = () => new MinecraftMetadata({fetcher:async url=>{
+  if(url.includes('piston-meta.mojang.com'))return Response.json({versions:['1.21.1','1.20.1','24w14a'].map(id=>({id,type:id==='24w14a'?'snapshot':'release',releaseTime:'2024-01-01T00:00:00Z',url:`https://piston-meta.mojang.com/${id}.json`}))});
+  if(url.includes('fabricmc.net')||url.includes('quiltmc.org'))return Response.json([{loader:{version:'0.16.9',stable:true}}]);
+  return new Response('',{status:404});
+}});
 const admin = 'petal-test-admin-token-not-for-production-123456';
 function jar(name = 'fabric.mod.json') {
   const filename = Buffer.from(name), content = Buffer.from('{"schemaVersion":1,"id":"petal_test","version":"1.0.0","name":"Petal Test"}');
@@ -23,7 +29,7 @@ function jar(name = 'fabric.mod.json') {
 }
 async function setup(t, options = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'petal-api-test-'));
-  const service = await createPetalServer({ dataDir: root, adminToken: admin, ...options });
+  const service = await createPetalServer({ dataDir: root, adminToken: admin, metadata:fixtureMetadata(), ...options });
   service.server.listen(0, '127.0.0.1'); await once(service.server, 'listening');
   t.after(async () => { service.server.closeAllConnections(); await new Promise(resolve => service.server.close(resolve)); await fs.rm(root, { recursive: true, force: true }); });
   const request = async (route, { method = 'GET', token, body, binary = false, headers = {} } = {}) => {
@@ -35,6 +41,16 @@ async function setup(t, options = {}) {
   const version = async (token, p, fields = {}) => (await request(`/v1/projects/${p.id}/versions`, { method: 'POST', token, body: { name: '1.0.0', filename: 'my-mod.jar', gameVersions: ['1.21.1'], loaders: ['fabric'], rightsConfirmed: true, ...fields } })).data;
   return { ...service, request, author, project, version, root };
 }
+
+test('hosted Quilt snapshots use official compatibility and unknown Minecraft IDs are rejected',async t=>{
+  const s=await setup(t), token=await s.author('quilt_author'), p=await s.project(token);
+  const catalog=await s.request('/v1/game/versions');
+  assert.equal(catalog.status,200);assert.equal(catalog.data.versions.some(v=>v.id==='24w14a'&&v.type==='snapshot'),true);
+  const version=await s.version(token,p,{gameVersions:['24w14a'],loaders:['quilt']});
+  assert.equal(typeof version.id,'string');
+  assert.equal((await s.request(`/v1/versions/${version.id}/file`,{method:'PUT',token,binary:true,body:jar('quilt.mod.json')})).status,200);
+  assert.equal((await s.request(`/v1/projects/${p.id}/versions`,{method:'POST',token,body:{name:'Bad',filename:'bad.jar',gameVersions:['99.99.99'],loaders:['fabric'],rightsConfirmed:true}})).status,400);
+});
 
 test('author accounts enforce authentication, ownership, and logout without leaking password data', async t => {
   const s = await setup(t);

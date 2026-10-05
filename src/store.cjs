@@ -22,10 +22,12 @@ class Store {
   save() { return atomicJSON(path.join(this.root, 'state.json'), this.data); }
   profile(id) { const p = this.data.profiles.find(p => p.id === id); if (!p) throw new Error('Profile not found.'); return p; }
   directory(id) { this.profile(id); if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid identifier.'); return path.join(this.root, 'instances', id); }
-  async create({ name, version, loader }) {
+  async create({ name, version, loader, loaderVersion }) {
     name = String(name || '').trim();
     if (!name || name.length > 60 || !validVersionId(version) || !LOADERS.includes(loader)) throw new Error('Invalid name, Minecraft version, or mod loader.');
+    if (loaderVersion && !validVersionId(loaderVersion)) throw new Error('Invalid loader version.');
     const p = { id: randomUUID(), name, version, loader, mods: [], createdAt: new Date().toISOString() };
+    if(loaderVersion) p.loaderVersion = loaderVersion;
     this.data.profiles.push(p);
     try {
       await fs.mkdir(path.join(this.directory(p.id), 'mods'), { recursive: true });
