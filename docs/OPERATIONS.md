@@ -90,3 +90,11 @@ readiness returns 503 without private details while liveness stays available.
 
 These are local Node/SQLite checks. Live SMTP, a real ClamAV daemon, Docker execution
 and Bloom's intended Linux host require their own deployment acceptance evidence.
+# Container deployment
+
+The root Dockerfile packages only API dependencies, runs as UID 1000 (`node`), exposes port 4318 and stores all state in `/var/lib/petal`. The named Compose volume retains accounts, encryption keys and files across container recreation. Never remove it with `down --volumes` unless intentionally deleting that installation.
+
+For local development, set `PETAL_PUBLIC_URL=http://127.0.0.1:4318` and `PETAL_REVIEW_POLICY=local-manual`, then run `docker compose up --build -d`. Published ports bind to loopback. For public use, supply the actual HTTPS origin and configure SMTP and a scanner (or explicitly select manual review) before routing traffic. `/ready` must return 200; configuration presence does not prove SMTP or scanner connectivity.
+
+On Linux, run `node scripts/container-smoke.mjs` to verify image port declarations, non-root volume writes and persistence after recreation. Follow the backup/restore acceptance procedure below with an actual account and approved release. Docker is unavailable on the development PC: image build, Linux ownership, recreation and public deployment are pending host validation.
+

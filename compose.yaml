@@ -2,12 +2,15 @@ services:
   petal-api:
     build:
       context: .
-      dockerfile: deploy/Dockerfile
+      dockerfile: Dockerfile
     init: true
     restart: unless-stopped
     ports:
       - "127.0.0.1:4318:4318"
     environment:
-      PETAL_PUBLIC_URL: ${PETAL_PUBLIC_URL:-http://127.0.0.1:4318}
+      PETAL_PUBLIC_URL: ${PETAL_PUBLIC_URL:?Set the exact external origin or http://127.0.0.1:4318 for local development}
+      PETAL_REVIEW_POLICY: ${PETAL_REVIEW_POLICY:-scanner}
     volumes:
-      - ./api/data:/app/api/data
+      - petal-data:/var/lib/petal
+volumes:
+  petal-data:
