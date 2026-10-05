@@ -60,7 +60,7 @@ unreviewed metadata changes to published projects.
 
 All endpoints below are under `/v1`. Write bodies use JSON except file uploads,
 which use a raw JAR body with `Content-Type: application/java-archive` and a
-positive `Content-Length`. Authentication uses `Authorization: Bearer <token>`.
+positive `Content-Length`. API sessions use `Authorization: Bearer <token>`. The website uses HTTP-only cookies and CSRF protection. See [account and operator setup](../docs/ACCOUNTS.md).
 Tokens belong in request headers, never URL parameters.
 
 | Method | Endpoint | Access / purpose |
@@ -131,7 +131,7 @@ directory is excluded from Git and Docker build context.
 
 Passwords are derived with salted scrypt. Session tokens are hashed on disk.
 The admin token remains a server secret. No cross-origin write requests are
-accepted. The portal uses same-origin scripts and bearer sessions, not cookies.
+accepted. The portal uses same-origin scripts, HTTP-only cookie sessions and CSRF protection.
 
 ## Prepare deployment
 
@@ -169,14 +169,14 @@ copying the database file alone while running is not a reliable backup.
 ## Preview limits
 
 This is a working moderated hosting preview, not a high-traffic platform.
-It has no email verification, password reset, account recovery, malware scanner,
+It includes email verification, password recovery and authenticator enrollment. It has no malware scanner,
 S3/CDN storage, resumable uploads, or distributed rate limiting. Archive
 validation does not establish that a mod is safe or that its author has rights.
 Administrators must review submissions; declared compatibility is not
 automatically proven. Interrupted uploads can leave an orphan file after a
 process crash, and storage cleanup / retention tools are not implemented yet.
 
-The admin token grants full moderation access. Public operations need no token;
+The preview admin token grants local moderation access until one-time account bootstrap. HTTPS public mode rejects it. Public operations need no token;
 author registration does not confer moderation rights. Keep all API data and
 secrets out of public repositories and screenshots.
 

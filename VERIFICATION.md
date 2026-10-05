@@ -76,7 +76,7 @@ The capture environment required `--disable-gpu` after an offscreen rendering er
 this does not establish that every computer needs that flag. README screenshots
 were captured from the actual English preview using isolated artifact data.
 
-Author email verification/recovery, malware scanning and Docker/Bloom deployment
+Public SMTP delivery, malware scanning and Docker/Bloom deployment
 are not yet verified. The server is a single-process local preview with moderated
 mod hosting; the full platform specification is a separate implementation effort.
 
@@ -113,3 +113,13 @@ allowlisting. The public website was inspected through the actual browser at
 390px and 1440px widths, with no horizontal document overflow. Empty-result
 search and separate creator dashboard entry points were verified. Screenshots
 show the real empty local catalog, not seeded production records.
+
+## Recoverable accounts checkpoint
+
+The full suite passed 47 tests on the account checkpoint, including legacy scrypt login,
+cookie/CSRF enforcement, reset and verification expiry/replay, session revocation,
+current-role checks, public MFA, authenticator replay prevention and one-time bootstrap.
+CUA verified synthetic-account login, email confirmation, logout and recovery request
+on a separate loopback instance at port 4319. Password reset was exercised by HTTP
+tests rather than changing a user credential through browser automation. Real SMTP
+delivery remains unverified.

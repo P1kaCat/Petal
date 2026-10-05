@@ -169,3 +169,7 @@ owners' terms. See [third-party notices](THIRD_PARTY_NOTICES.md) and
 <p align="center">
   <sub>Created by <a href="https://github.com/P1kaCat">P1kaCat</a> · Independent Minecraft launcher · Not affiliated with Mojang, Microsoft, Modrinth, or CurseForge</sub>
 </p>
+
+The [account page](docs/ACCOUNTS.md) includes email verification, password recovery,
+active-session revocation and authenticator enrollment. Public operator access uses
+verified accounts with MFA and a one-time bootstrap.

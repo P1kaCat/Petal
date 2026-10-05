@@ -2,7 +2,9 @@
   "name": "petal-launcher",
   "version": "0.2.0",
   "description": "Minecraft Java launcher with Modrinth, CurseForge, and moderated Petal mod hosting",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "private": true,
   "author": "P1kaCat",
   "license": "SEE LICENSE IN LICENSE",
@@ -30,6 +32,8 @@
     "@xmcl/file-transfer": "1.0.6",
     "@xmcl/installer": "5.4.0",
     "msmc": "5.0.5",
+    "nodemailer": "^10.0.14",
+    "otplib": "^13.5.0",
     "undici": "6.0.1",
     "yauzl": "3.4.0"
   },

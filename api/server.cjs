@@ -2,8 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs/promises');
 const { createReadStream } = require('node:fs');
 const path = require('node:path');
-const { randomUUID, randomBytes, createHash, timingSafeEqual, scrypt } = require('node:crypto');
-const { promisify } = require('node:util');
+const { randomUUID, randomBytes, createHash } = require('node:crypto');
 const { Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const { openDatabase } = require('./db.cjs');
@@ -12,8 +11,10 @@ const { projectPage, authorPage } = require('./public-pages.cjs');
 const yauzl = require('yauzl');
 const { safeFilename } = require('../src/store.cjs');
 const { MinecraftMetadata, validVersionId } = require('../src/minecraft-metadata.cjs');
-const derive = promisify(scrypt);
-const digest = value => createHash('sha256').update(value).digest('hex');
+const {createAuth}=require('./auth.cjs');
+const {createAccounts}=require('./accounts.cjs');
+const {createMail}=require('./mail.cjs');
+const {createAccountRoutes}=require('./routes/auth.cjs');
 const text = (value, label, max = 200) => {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail(400, `Invalid ${label}.`);
   return value.trim();
@@ -64,6 +65,15 @@ async function createPetalServer(options = {}) {
     if (url.username || url.password || url.search || url.hash || url.pathname !== '/' || (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error('Public URL must be an HTTPS origin (HTTP loopback is allowed for development).');
     base = url.origin;
   }
+  const publicMode=base.startsWith('https:'),now=options.now||Date.now;
+  let mfaKey=process.env.PETAL_MFA_KEY;
+  if(mfaKey&&!/^[a-f0-9]{64}$/i.test(mfaKey))throw new Error('PETAL_MFA_KEY must be a 32-byte hex key.');
+  if(!mfaKey){const keyFile=path.join(root,'mfa-key.txt');try{mfaKey=(await fs.readFile(keyFile,'utf8')).trim();}catch(error){if(error.code!=='ENOENT')throw error;mfaKey=randomBytes(32).toString('hex');await fs.writeFile(keyFile,mfaKey+'\n',{flag:'wx',mode:0o600});}}
+  if(!/^[a-f0-9]{64}$/i.test(mfaKey))throw new Error('Invalid stored MFA encryption key.');
+  const mail=options.mail||createMail({root,publicMode,getBase:()=>base});
+  const accounts=createAccounts({db,mail,publicMode,key:Buffer.from(mfaKey,'hex'),now});
+  const auth=createAuth({db,adminToken,publicMode,now});
+  const accountRoutes=createAccountRoutes({db,accounts,auth,publicMode});
   const maxUpload = options.maxUploadBytes || Number(process.env.PETAL_API_UPLOAD_MB || 64) * 1024 * 1024;
   const maxStorage = options.maxStorageBytes || Number(process.env.PETAL_API_STORAGE_MB || 2048) * 1024 * 1024;
   if (!Number.isSafeInteger(maxUpload) || !Number.isSafeInteger(maxStorage) || maxUpload < 1 || maxStorage < 1) throw new Error('Invalid upload or storage limits.');
@@ -73,16 +83,12 @@ async function createPetalServer(options = {}) {
     const now = Date.now();
     for (const [key, value] of rates) if (value.until < now) rates.delete(key);
     db.prepare('DELETE FROM sessions WHERE expires < ?').run(now);
+    db.prepare('DELETE FROM account_tokens WHERE expires < ?').run(now);
   }, 60000).unref();
   const currentUsed = () => db.prepare('SELECT COALESCE(SUM(size), 0) AS bytes FROM versions').get().bytes;
-  const userFor = req => {
-    const token = /^Bearer (\S+)$/.exec(req.headers.authorization || '')?.[1];
-    if (!token) return null;
-    if (timingSafeEqual(Buffer.from(digest(token)), Buffer.from(digest(adminToken)))) return { id: 'admin', admin: true };
-    return db.prepare('SELECT u.id, u.username FROM sessions s JOIN users u ON u.id=s.userId WHERE s.hash=? AND s.expires>?').get(digest(token), Date.now()) || null;
-  };
+  const userFor = auth.authenticate;
   const requireUser = req => userFor(req) || fail(401, 'Sign in to continue.');
-  const requireAdmin = req => { const u = requireUser(req); if (!u.admin) fail(403, 'Administrator access required.'); return u; };
+  const requireAdmin = req => { const u = requireUser(req); auth.requirePermission(u,'moderate'); return u; };
   const ownProject = (req, id) => {
     const user = requireUser(req), p = db.prepare('SELECT * FROM projects WHERE id=?').get(id);
     if (!p) fail(404, 'Project not found.');
@@ -91,11 +97,6 @@ async function createPetalServer(options = {}) {
   };
   const versionView = row => ({ id: row.id, projectId: row.projectId, name: row.name, gameVersions: JSON.parse(row.gameVersions), loaders: JSON.parse(row.loaders), dependencies: JSON.parse(row.dependencies), status: row.status, createdAt: row.createdAt, reviewNote: row.reviewNote, rightsConfirmed: !!row.rightsConfirmed, downloads: row.downloads, file: row.sha512 ? { name: row.filename, size: row.size, hash: row.sha512, algorithm: 'sha512', url: `${base}/v1/versions/${row.id}/download` } : null });
   const projectView = row => ({ id: row.id, slug: row.slug, title: row.title, description: row.description, license: row.license, sourceUrl: row.sourceUrl, author: db.prepare('SELECT username FROM users WHERE id=?').get(row.ownerId).username, downloads: db.prepare("SELECT COALESCE(SUM(downloads),0) AS count FROM versions WHERE projectId=? AND status='published'").get(row.id).count, url: `${base}/projects/${row.id}` });
-  const issueSession = user => {
-    const token = randomBytes(32).toString('hex'), expires = Date.now() + 24 * 60 * 60 * 1000;
-    db.prepare('INSERT INTO sessions VALUES (?,?,?)').run(digest(token), user.id, expires);
-    return { token, expires, user: { id: user.id, username: user.username } };
-  };
   const limit = (req, auth = false) => {
     const key = `${auth ? 'auth' : 'read'}:${req.socket.remoteAddress}`;
     const now = Date.now(); let bucket = rates.get(key);
@@ -110,46 +111,30 @@ async function createPetalServer(options = {}) {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-Frame-Options', 'DENY');
+    if(publicMode)res.setHeader('Strict-Transport-Security','max-age=31536000');
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     try {
       const url = new URL(req.url, 'http://localhost'), route = url.pathname;
-      limit(req, route.startsWith('/v1/auth/'));
+      limit(req, route.startsWith('/v1/auth/') || route.includes('/mfa/') || route==='/v1/me/email');
       if (req.headers.origin && req.headers.origin !== base && !['GET', 'HEAD'].includes(req.method)) fail(403, 'Cross-origin writes are not allowed.');
+      if(req.headers['sec-fetch-site']==='cross-site'&&!['GET','HEAD'].includes(req.method))fail(403,'Cross-origin writes are not allowed.');
+      auth.validateCSRF(req);
+      if(await accountRoutes(req,res,route))return;
       if (req.method === 'GET' && route === '/health') return json(res, 200, { status: 'ok', service: 'Petal API', version: '1' });
       if (req.method === 'GET' && route === '/v1/game/versions') return json(res,200,await metadata.versions());
-      const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};
+      const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/account':'account.html','/account.js':'account.js','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};
       if (req.method === 'GET' && Object.hasOwn(assets,route)) {
         const filename=assets[route];
         const data=await fs.readFile(route==='/minecraft-panorama.png'?path.join(__dirname,filename):path.join(__dirname,'public',filename));
         const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'}[path.extname(filename)];
         res.writeHead(200,{'Content-Type':mime});return res.end(data);
       }
-      if (req.method === 'POST' && ['/v1/auth/register', '/v1/auth/login'].includes(route)) {
-        const data = await body(req), username = text(data.username, 'username', 40).toLowerCase();
-        if (!/^[a-z0-9_-]{3,40}$/.test(username) || typeof data.password !== 'string' || data.password.length < 12 || data.password.length > 256) fail(400, 'Use a 3–40 character username and a 12–256 character password.');
-        const existing = db.prepare('SELECT * FROM users WHERE username=?').get(username);
-        if (route.endsWith('/register')) {
-          if (existing) fail(409, 'Username already registered.');
-          const salt = randomBytes(16).toString('hex'), hash = (await derive(data.password, salt, 64)).toString('hex');
-          const id = randomUUID();
-          try { db.prepare('INSERT INTO users VALUES (?,?,?,?)').run(id, username, hash, salt); }
-          catch { fail(409, 'Username already registered.'); }
-          return json(res, 201, issueSession({ id, username }));
-        }
-        const hash = await derive(data.password, existing?.salt || 'petal-invalid-user', 64);
-        if (!existing || !timingSafeEqual(hash, Buffer.from(existing.passwordHash, 'hex'))) fail(401, 'Invalid username or password.');
-        return json(res, 200, issueSession(existing));
-      }
-      if (req.method === 'POST' && route === '/v1/auth/logout') {
-        requireUser(req); db.prepare('DELETE FROM sessions WHERE hash=?').run(digest((req.headers.authorization || '').slice(7)));
-        return json(res, 200, { ok: true });
-      }
       if (req.method === 'GET' && route === '/v1/me/projects') {
         const user = requireUser(req);
         return json(res, 200, { projects: db.prepare('SELECT * FROM projects WHERE ownerId=? ORDER BY createdAt DESC').all(user.id).map(projectView) });
       }
       if (req.method === 'POST' && route === '/v1/projects') {
-        const user = requireUser(req); if (user.admin) fail(400, 'Create projects using an author account.');
+        const user = requireUser(req); auth.requirePermission(user,'publish'); if (user.localOperator) fail(400, 'Create projects using an author account.');
         const data = await body(req), slug = text(data.slug, 'slug', 80).toLowerCase();
         if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) fail(400, 'Use lowercase letters, numbers, and single hyphens for the slug.');
         const title = text(data.title, 'title', 120), description = text(data.description, 'description', 4000), license = text(data.license, 'mod license', 500);
@@ -194,7 +179,7 @@ async function createPetalServer(options = {}) {
           return json(res, 200, projectRoute[2] ? { versions: rows.map(versionView) } : projectView(p));
         }
         if (req.method === 'POST' && projectRoute[2]) {
-          ownProject(req, id); const data = await body(req);
+          const publisher=requireUser(req); auth.requirePermission(publisher,'publish'); ownProject(req, id); const data = await body(req);
           const name = text(data.name, 'version name', 100);
           const gameVersions = data.gameVersions, loaders = data.loaders;
           if (!Array.isArray(gameVersions) || !gameVersions.length || gameVersions.length > 30 || gameVersions.some(v => !validVersionId(v))) fail(400, 'List supported official Minecraft versions.');

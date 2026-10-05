@@ -1,10 +1,10 @@
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let session = null;
-try { session = JSON.parse(sessionStorage.getItem('petal-author-session')); } catch { sessionStorage.removeItem('petal-author-session'); }
+sessionStorage.removeItem('petal-author-session');
 function notice(message, error = false) { $('#notice').hidden = false; $('#notice').textContent = message; $('#notice').classList.toggle('error', error); }
 async function call(route, options = {}) {
-  const response = await fetch('/v1' + route, { ...options, headers: { ...(options.body && !(options.body instanceof File) ? { 'Content-Type': 'application/json' } : {}), ...(session ? { Authorization: 'Bearer ' + session.token } : {}), ...options.headers } });
+  const response = await fetch('/v1' + route, { ...options, headers: { ...(options.body && !(options.body instanceof File) ? { 'Content-Type': 'application/json' } : {}), ...(session?.token ? { Authorization: 'Bearer ' + session.token } : {}), ...(session?.csrf ? { 'X-Petal-CSRF': session.csrf } : {}), ...options.headers } });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
   return data;
@@ -16,17 +16,17 @@ async function perform(form, action) {
 }
 function saveSession(value) {
   session = value;
-  if (value) sessionStorage.setItem('petal-author-session', JSON.stringify(value)); else sessionStorage.removeItem('petal-author-session');
+  sessionStorage.removeItem('petal-author-session');
   $('#auth').hidden = !!session; $('#account-actions').hidden = !session;
-  $('#author').hidden = !session || session.admin; $('#admin').hidden = !session?.admin;
+  $('#author').hidden = !session || !!session.token; $('#admin').hidden = !session?.admin;
   $('#session-label').textContent = session ? (session.admin ? 'Administrator' : session.user.username) : 'Not signed in';
 }
 async function authenticate(register = false) {
   await perform($('#login-form'), async () => {
     if (!$('#login-form').reportValidity()) return;
     const fields = new FormData($('#login-form'));
-    const data = await call(register ? '/auth/register' : '/auth/login', { method: 'POST', body: JSON.stringify({ username: fields.get('username'), password: fields.get('password') }) });
-    $('#login-form').reset(); saveSession(data); await loadMine(); notice(register ? 'Account created. Create your first project.' : 'Signed in.');
+    const data = await call(register ? '/auth/register' : '/auth/login', { method: 'POST', body: JSON.stringify({ username: fields.get('username'), password: fields.get('password'), email: fields.get('email') || undefined, code: fields.get('code'), sessionType: 'cookie' }) });
+    $('#login-form').reset(); saveSession({...data,admin:data.user.roles?.some(r=>['admin','moderator'].includes(r))}); if(session.admin) await loadReviews(); else await loadMine(); notice(register ? 'Account created. Create your first project.' : 'Signed in.');
   });
 }
 $('#login-form').addEventListener('submit', e => { e.preventDefault(); authenticate(); });
@@ -35,7 +35,7 @@ $('#admin-form').addEventListener('submit', async e => {
   e.preventDefault(); const token = new FormData(e.target).get('token');
   await perform(e.target, async () => { saveSession({ token, admin: true }); try { await loadReviews(); $('#admin-form').reset(); notice('Review desk ready.'); } catch (error) { saveSession(null); throw error; } });
 });
-$('#logout').addEventListener('click', async () => { if (session && !session.admin) { try { await call('/auth/logout', { method: 'POST' }); } catch {} } saveSession(null); notice('Signed out.'); });
+$('#logout').addEventListener('click', async () => { if (session && !session.token) { try { await call('/auth/logout', { method: 'POST' }); } catch {} } saveSession(null); notice('Signed out.'); });
 $('#project-form').addEventListener('submit', e => {
   e.preventDefault(); perform(e.target, async () => {
     const fields = Object.fromEntries(new FormData(e.target));
@@ -59,7 +59,7 @@ async function loadMine() {
   $('#my-projects').innerHTML = details.map(({ p, versions }) => `<article><h3>${esc(p.title)}</h3><p>Project ID: ${esc(p.id)} · License: ${esc(p.license)}</p>${versions.map(v => `<p><strong>${esc(v.name)}</strong><span class="badge">${esc(v.status)}</span>${v.reviewNote ? `<br>${esc(v.reviewNote)}` : ''}</p>`).join('') || '<p>No releases yet.</p>'}</article>`).join('') || '<p>Create a project to get started.</p>';
 }
 async function downloadReview(id, filename) {
-  const response = await fetch('/v1/versions/' + id + '/download', { headers: { Authorization: 'Bearer ' + session.token } });
+  const response = await fetch('/v1/versions/' + id + '/download', { headers: session.token ? { Authorization: 'Bearer ' + session.token } : {} });
   if (!response.ok) throw new Error('Unable to download the review file.');
   const url = URL.createObjectURL(await response.blob()); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -88,6 +88,8 @@ async function search() {
 }
 $('#search-form').addEventListener('submit', e => { e.preventDefault(); perform(e.target, search); });
 (async () => {
+  try { const capabilities=await call('/auth/capabilities'); $('#admin-form').hidden=!capabilities.localOperator; } catch { $('#admin-form').hidden=true; }
+  try { const me=await call('/me'); session={...me,admin:me.user.roles.some(r=>['admin','moderator'].includes(r))}; } catch {}
   saveSession(session);
   try { if (session) { if (session.admin) await loadReviews(); else await loadMine(); } } catch { saveSession(null); notice('Your session has expired. Sign in again.', true); }
   try { await search(); } catch (error) { notice(error.message, true); }
