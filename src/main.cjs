@@ -9,8 +9,9 @@ const { Catalog } = require('./catalog.cjs');
 const { petalOrigin } = require('./petal-url.cjs');
 const { installMods, assertNotRequired } = require('./mods.cjs');
 const { launchGame, prepareGame } = require('./game.cjs');
+const { MinecraftMetadata } = require('./minecraft-metadata.cjs');
 app.commandLine.appendSwitch('lang', 'en-US');
-let win, store, catalog, account, busy = false, loginBusy = false;
+let win, store, catalog, metadata, account, busy = false, loginBusy = false;
 let secrets = {};
 const running = new Map();
 const page = pathToFileURL(path.join(__dirname, 'index.html')).href;
@@ -37,12 +38,15 @@ async function exclusive(operation) {
 function editable(id) { if (running.has(id)) throw new Error('Close Minecraft before modifying this profile.'); return store.profile(id); }
 const handlers = {
   state: () => snapshot(),
-  versions: async () => (await catalog.mr('/tag/game_version')).filter(v => v.version_type === 'release').map(v => v.version),
+  versions: async () => (await metadata.versions()).versions.map(v => v.id),
   search: options => {
     const p = options.profileId ? store.profile(options.profileId) : null;
     return catalog.search({ ...options, version: p?.version, loader: p?.loader });
   },
-  createProfile: options => exclusive(() => store.create(options)),
+  createProfile: options => exclusive(async () => {
+    if (!(await metadata.versions()).versions.some(v => v.id === options.version)) throw new Error('Minecraft version is missing from the official manifest.');
+    return store.create(options);
+  }),
   install: ({ profileId, source, id }) => exclusive(() => { editable(profileId); return installMods(store, catalog, profileId, source, id, notify); }),
   changeMod: ({ profileId, source, id, action }) => exclusive(async () => {
     const p = editable(profileId), mod = p.mods.find(m => m.source === source && m.id === id);
@@ -150,6 +154,7 @@ else {
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
     const root = process.env.PETAL_DATA_DIR || path.join(app.getPath('userData'), 'data');
+    metadata = new MinecraftMetadata({ cacheFile: path.join(root, 'minecraft-versions.json') });
     await fs.mkdir(root, { recursive: true });
     store = new Store(root); await store.load();
     try {

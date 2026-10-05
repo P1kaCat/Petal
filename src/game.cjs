@@ -6,6 +6,7 @@ const { json } = require('./catalog.cjs');
 const { retryDownload } = require('./retry.cjs');
 const { Agent } = require('undici');
 const { resolveAgent } = require('@xmcl/file-transfer');
+const { validateManifest } = require('./minecraft-metadata.cjs');
 // Each origin gets a bounded connection pool, including asset and range requests.
 const agent = resolveAgent({ dispatcher: new Agent({ connections: 6, pipelining: 1, connect: { timeout: 30000 }, headersTimeout: 60000, bodyTimeout: 60000 }) });
 async function text(url) {
@@ -22,7 +23,7 @@ async function prepareGame(store, profileId, notify = () => {}) {
   const profile = store.profile(profileId);
   const resources = path.join(store.root, 'minecraft');
   const manifest = await installer.getVersionList();
-  const meta = manifest.versions.find(v => v.id === profile.version);
+  const meta = validateManifest(manifest.versions).find(v => v.id === profile.version);
   if (!meta) throw new Error('This Minecraft version is missing from the official manifest.');
   const details = await json(meta.url);
   let javaPath = store.data.settings.javaPath;

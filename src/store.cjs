@@ -1,7 +1,8 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const LOADERS = ['fabric', 'forge', 'neoforge'];
+const { validVersionId } = require('./version-id.cjs');
+const LOADERS = ['vanilla', 'fabric', 'forge', 'neoforge', 'quilt'];
 function safeFilename(name) {
   if (typeof name !== 'string' || !name.endsWith('.jar') || name.length > 200 || /[\\/:*?"<>|\x00-\x1f]/.test(name) || name.startsWith('.') || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])\./i.test(name)) throw new Error('Invalid mod filename.');
   return name;
@@ -23,7 +24,7 @@ class Store {
   directory(id) { this.profile(id); if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid identifier.'); return path.join(this.root, 'instances', id); }
   async create({ name, version, loader }) {
     name = String(name || '').trim();
-    if (!name || name.length > 60 || !/^\d+\.\d+(\.\d+)?$/.test(version) || !LOADERS.includes(loader)) throw new Error('Invalid name, Minecraft version, or mod loader.');
+    if (!name || name.length > 60 || !validVersionId(version) || !LOADERS.includes(loader)) throw new Error('Invalid name, Minecraft version, or mod loader.');
     const p = { id: randomUUID(), name, version, loader, mods: [], createdAt: new Date().toISOString() };
     this.data.profiles.push(p);
     try {
