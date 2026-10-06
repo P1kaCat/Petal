@@ -322,7 +322,7 @@ async function createPetalServer(options = {}) {
 }
 
 if (require.main === module) {
-  createPetalServer().then(({ server, root }) => {
+  require('./config.cjs').loadSecretFiles().then(()=>createPetalServer()).then(({ server, root }) => {
     const host = process.env.PETAL_API_HOST || '127.0.0.1', port = Number(process.env.PETAL_API_PORT || 4318);
     if (host !== '127.0.0.1' && host !== 'localhost' && !process.env.PETAL_PUBLIC_URL) throw new Error('Set PETAL_PUBLIC_URL before listening beyond loopback.');
     server.listen(port, host, () => console.log(`Petal API listening on ${host}:${port}. Portal: ${process.env.PETAL_PUBLIC_URL || `http://127.0.0.1:${port}`}. Local admin token: ${path.join(root, 'admin-token.txt')} (unless supplied through the environment).`));

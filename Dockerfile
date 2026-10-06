@@ -9,6 +9,7 @@ COPY scripts/backup-api.cjs scripts/restore-api.cjs scripts/backup-common.cjs sc
 COPY LICENSE THIRD_PARTY_NOTICES.md ./
 RUN mkdir -p /var/lib/petal && chown node:node /var/lib/petal
 USER node
+LABEL bloom.storage.path="/var/lib/petal" bloom.storage.uid="1000"
 ENV PETAL_API_HOST=0.0.0.0 PETAL_API_PORT=4318 PETAL_API_DATA_DIR=/var/lib/petal
 EXPOSE 4318
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD node -e "fetch('http://127.0.0.1:4318/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
