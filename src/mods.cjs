@@ -3,11 +3,11 @@ const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { safeFilename } = require('./store.cjs');
 const { isPetalDownload } = require('./petal-url.cjs');
-async function download(file, fetcher = fetch, petalBaseUrl = '', curseforgeKey = '') {
+async function download(file, fetcher = fetch, petalBaseUrl = '', curseforgeKey = '',type='mod') {
   const url = new URL(file.url);
   const trustedCDN = url.protocol === 'https:' && ['cdn.modrinth.com', 'mediafilez.forgecdn.net', 'edge.forgecdn.net', 'media.forgecdn.net'].includes(url.hostname);
   if (!trustedCDN && !isPetalDownload(url, petalBaseUrl)) throw new Error('Download URL not allowed.');
-  safeFilename(file.name);
+  require('./content-format.cjs').safeContentFilename(file.name,type);
   if (!file.hash || !['sha1', 'sha512'].includes(file.algorithm)) throw new Error('Missing file checksum.');
   const headers = url.protocol === 'https:' && url.hostname === 'edge.forgecdn.net' && curseforgeKey ? {'x-api-key':curseforgeKey} : {};
   const response = await fetcher(url, { redirect: 'error', headers, signal: AbortSignal.timeout(180000) });
@@ -18,7 +18,7 @@ async function download(file, fetcher = fetch, petalBaseUrl = '', curseforgeKey 
   if (createHash(file.algorithm).update(buffer).digest('hex') !== file.hash.toLowerCase()) throw new Error('Checksum mismatch: download rejected.');
   return buffer;
 }
-async function planInstall(catalog, profile, source, id) {
+async function planInstall(catalog, profile, source, id, roots) {
   const resolved = new Map(); const visited = new Set();
   async function visit(dep) {
     const visitKey = `${dep.source}:${dep.id || ''}:${dep.versionId || ''}`;
@@ -36,7 +36,7 @@ async function planInstall(catalog, profile, source, id) {
       if (!installed) await visit(dependency);
     }
   }
-  await visit({ source, id });
+  for(const root of roots||[{source,id}])await visit(root);
   const installed = profile.mods.filter(m => m.enabled !== false && !resolved.has(`${m.source}:${m.id}`));
   const all = [...installed, ...resolved.values()];
   for (const mod of all) for (const dependency of mod.dependencies || []) {

@@ -8,8 +8,8 @@ const fixtureMetadata = () => new MinecraftMetadata({fetcher:async url=>{
   return new Response('',{status:404});
 }});
 const admin = 'petal-test-admin-token-not-for-production-123456';
-function jar(name = 'fabric.mod.json') {
-  const filename = Buffer.from(name), content = Buffer.from('{"schemaVersion":1,"id":"petal_test","version":"1.0.0","name":"Petal Test"}');
+function jar(name = 'fabric.mod.json',payload='{"schemaVersion":1,"id":"petal_test","version":"1.0.0","name":"Petal Test"}') {
+  const filename = Buffer.from(name), content = Buffer.from(payload);
   let crc = 0xffffffff;
   for (const byte of content) { crc ^= byte; for (let i = 0; i < 8; i++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0); }
   crc = (crc ^ 0xffffffff) >>> 0;

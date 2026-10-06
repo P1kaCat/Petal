@@ -23,6 +23,7 @@ const {createProjectRoutes}=require('./routes/projects.cjs');
 const {createTokens}=require('./tokens.cjs');
 const {page}=require('./pagination.cjs');
 const {createReadiness}=require('./operations.cjs');
+const {TYPES,safeContentFilename}=require('../src/content-format.cjs');
 const text = (value, label, max = 200) => {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail(400, `Invalid ${label}.`);
   return value.trim();
@@ -91,8 +92,8 @@ async function createPetalServer(options = {}) {
   const ownProject = (req, id) => {
     return projects.requireAccess(requireUser(req),id,req.method==='GET'?'read':'write');
   };
-  const versionView = (row,privateView=false) => ({ id: row.id, projectId: row.projectId, name: row.name, gameVersions: JSON.parse(row.gameVersions), loaders: JSON.parse(row.loaders), dependencies: JSON.parse(row.dependencies), status: row.status, createdAt: row.createdAt, ...(privateView===true?{reviewNote:row.reviewNote,scanStatus:row.scanStatus}:{}), rightsConfirmed: !!row.rightsConfirmed, downloads: row.downloads, file: row.sha512 ? { name: row.filename, size: row.size, hash: row.sha512, algorithm: 'sha512', url: `${base}/v1/versions/${row.id}/download` } : null });
-  const projectView = row => ({ id: row.id, slug: row.slug, title: row.title, description: row.description, license: row.license, sourceUrl: row.sourceUrl, author: db.prepare('SELECT username FROM users WHERE id=?').get(row.ownerId).username, downloads: db.prepare("SELECT COALESCE(SUM(downloads),0) AS count FROM versions WHERE projectId=? AND status='published'").get(row.id).count, url: `${base}/projects/${row.id}`, revisionId:row.revisionId, iconUrl:row.iconId?'/media/'+row.iconId:null,gallery:JSON.parse(row.gallery).map(id=>'/media/'+id) });
+  const versionView = (row,privateView=false) => ({ type:projects.get(row.projectId).type,id: row.id, projectId: row.projectId, name: row.name, gameVersions: JSON.parse(row.gameVersions), loaders: JSON.parse(row.loaders), dependencies: JSON.parse(row.dependencies), status: row.status, createdAt: row.createdAt, ...(privateView===true?{reviewNote:row.reviewNote,scanStatus:row.scanStatus}:{}), rightsConfirmed: !!row.rightsConfirmed, downloads: row.downloads, file: row.sha512 ? { name: row.filename, size: row.size, hash: row.sha512, algorithm: 'sha512', url: `${base}/v1/versions/${row.id}/download` } : null });
+  const projectView = row => ({ type:row.type,id: row.id, slug: row.slug, title: row.title, description: row.description, license: row.license, sourceUrl: row.sourceUrl, author: db.prepare('SELECT username FROM users WHERE id=?').get(row.ownerId).username, downloads: db.prepare("SELECT COALESCE(SUM(downloads),0) AS count FROM versions WHERE projectId=? AND status='published'").get(row.id).count, url: `${base}/projects/${row.id}`, revisionId:row.revisionId, iconUrl:row.iconId?'/media/'+row.iconId:null,gallery:JSON.parse(row.gallery).map(id=>'/media/'+id) });
   const limit = (req, auth = false) => {
     const key = `${auth ? 'auth' : 'read'}:${req.socket.remoteAddress}`;
     const now = Date.now(); let bucket = rates.get(key);
@@ -150,7 +151,8 @@ async function createPetalServer(options = {}) {
         }
         if (db.prepare('SELECT COUNT(*) AS n FROM projects WHERE ownerId=?').get(user.id).n >= 100) fail(409, 'Author project limit reached.');
         if (db.prepare('SELECT id FROM projects WHERE slug=?').get(slug)) fail(409, 'Slug already in use.');
-        const id = randomUUID(); db.prepare('INSERT INTO projects(id,ownerId,slug,title,description,license,sourceUrl,createdAt) VALUES (?,?,?,?,?,?,?,?)').run(id, user.id, slug, title, description, license, sourceUrl, new Date().toISOString());
+        const type=data.type||'mod';if(!TYPES.includes(type))fail(400,'Invalid content type.');
+        const id = randomUUID(); db.prepare('INSERT INTO projects(id,ownerId,slug,title,description,license,sourceUrl,createdAt,type) VALUES (?,?,?,?,?,?,?,?,?)').run(id, user.id, slug, title, description, license, sourceUrl, new Date().toISOString(),type);
         return json(res, 201, projectView(db.prepare('SELECT * FROM projects WHERE id=?').get(id)));
       }
       if (req.method === 'GET' && route === '/v1/search') {
@@ -161,6 +163,7 @@ async function createPetalServer(options = {}) {
         if (!Number.isSafeInteger(offset)||offset<0||offset>100000||!Number.isSafeInteger(pageSize)||pageSize<1||pageSize>100) fail(400, 'Invalid pagination.');
         const params = [`%${q}%`, `%${q}%`];
         let filters = "v.projectId=p.id AND v.status='published'";
+        if(url.searchParams.has('type')){const type=url.searchParams.get('type');if(!TYPES.includes(type))fail(400,'Invalid content type.');filters+=' AND p.type=?';params.push(type);}
         for (const [parameter, column] of [['version', 'gameVersions'], ['loader', 'loaders']]) {
           if (url.searchParams.has(parameter)) { filters += ` AND EXISTS (SELECT 1 FROM json_each(v.${column}) WHERE value=?)`; params.push(url.searchParams.get(parameter)); }
         }
@@ -187,14 +190,14 @@ async function createPetalServer(options = {}) {
           const name = text(data.name, 'version name', 100);
           const gameVersions = data.gameVersions, loaders = data.loaders;
           if (!Array.isArray(gameVersions) || !gameVersions.length || gameVersions.length > 30 || gameVersions.some(v => !validVersionId(v))) fail(400, 'List supported official Minecraft versions.');
-          if (!Array.isArray(loaders) || !loaders.length || loaders.length > 4 || loaders.some(v => !['fabric', 'quilt', 'forge', 'neoforge'].includes(v))) fail(400, 'List supported mod loaders.');
+          if (!Array.isArray(loaders) || !loaders.length || loaders.length > 5 || loaders.some(v => !(p.type==='mod'?['fabric','quilt','forge','neoforge']:['vanilla','fabric','quilt','forge','neoforge']).includes(v))) fail(400, 'List supported mod loaders.');
           for(const version of gameVersions) for(const loader of loaders) {
             try { await metadata.assertSelection({version,loader}); }
             catch(error) { fail(/unavailable|fetch|offline/i.test(error.message)?503:400,error.message); }
           }
           if (data.rightsConfirmed !== true) fail(400, 'Confirm that you own this mod or have permission to distribute it.');
           let filename;
-          try { filename = safeFilename(data.filename); } catch { fail(400, 'Invalid mod filename.'); }
+          try { filename = safeContentFilename(data.filename,p.type); } catch { fail(400, 'Invalid mod filename.'); }
           const dependencies = data.dependencies || [];
           if (!Array.isArray(dependencies) || dependencies.length > 30) fail(400, 'Invalid dependencies.');
           const normalized = dependencies.map(d => {
@@ -217,7 +220,7 @@ async function createPetalServer(options = {}) {
           if (v.status !== 'draft') fail(409, 'This version has already been submitted. Create a new version instead.');
           const length = Number(req.headers['content-length']);
           if (!Number.isSafeInteger(length) || length < 1) fail(411, 'A positive Content-Length is required.');
-          if (!['application/java-archive', 'application/octet-stream'].includes(req.headers['content-type'])) fail(415, 'Upload a raw JAR file.');
+          if (!['application/java-archive','application/zip', 'application/octet-stream'].includes(req.headers['content-type'])) fail(415, 'Upload a raw JAR file.');
           const publisher=requireUser(req);auth.requirePermission(publisher,'publish');
           const reservation=storage.reserveUpload({userId:publisher.id,versionId:id,size:length});
           const temporary = path.join(root, 'incoming', reservation.id), destination = storage.filePath(id+'.jar','quarantine');
@@ -231,7 +234,7 @@ async function createPetalServer(options = {}) {
             } });
             await pipeline(req, measure, handle.createWriteStream());
             if (size !== length) fail(400, 'Incomplete upload.');
-            await validateJar(temporary);
+            await validateArchive(temporary,projects.get(v.projectId).type);
             await fs.rename(temporary, destination);
             let scanStatus=reviewPolicy==='scanner'?'unscanned':'manual';
             if(scanner){try{const result=await scanner.scan(destination);scanStatus=['clean','infected'].includes(result?.status)?result.status:'failed';}catch{scanStatus='failed';}}
@@ -250,7 +253,7 @@ async function createPetalServer(options = {}) {
             if (!v.sha512) fail(404, 'File not uploaded.');
             const filename = await storage.locate(v.storageKey||id+'.jar');
             await fs.access(filename);
-            res.writeHead(200, { 'Content-Type': 'application/java-archive', 'Content-Length': v.size, 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(v.filename)}`, 'Cache-Control': 'no-store', 'X-Checksum-SHA512': v.sha512 });
+            res.writeHead(200, { 'Content-Type': projects.get(v.projectId).type==='mod'?'application/java-archive':'application/zip', 'Content-Length': v.size, 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(v.filename)}`, 'Cache-Control': 'no-store', 'X-Checksum-SHA512': v.sha512 });
             await pipeline(createReadStream(filename), res);
             if (v.status === 'published') db.prepare('UPDATE versions SET downloads=downloads+1 WHERE id=?').run(id);
             return;

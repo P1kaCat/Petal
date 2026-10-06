@@ -60,6 +60,7 @@ class Catalog {
   async resolve(source, id, profile, versionId) {
     if (source === 'petal') {
       const project = await this.petal(`/projects/${encodeURIComponent(id)}`);
+      if(project.type&&project.type!=='mod')throw Error('Use the profile content installer for this project type.');
       const versions = versionId ? [await this.petal(`/versions/${encodeURIComponent(versionId)}`)] : (await this.petal(`/projects/${encodeURIComponent(id)}/versions?version=${encodeURIComponent(profile.version)}&loader=${encodeURIComponent(profile.loader)}&limit=100`)).versions;
       const v = versions.find(v => v.projectId === id && v.status === 'published' && v.gameVersions.includes(profile.version) && v.loaders.includes(profile.loader));
       if (!v) throw new Error(`No published compatible Petal version for ${project.title}.`);
@@ -86,6 +87,34 @@ class Catalog {
     const hash = f.hashes.find(h => h.algo === 1);
     if (!hash) throw new Error('Missing SHA-1 checksum: installation refused.');
     return { source, id: String(project.id), title: project.name, versionId: String(f.id), versionName: f.displayName, file: { name: f.fileName, url: f.downloadUrl, hash: hash.value, algorithm: 'sha1' }, dependencies: f.dependencies.filter(d => d.relationType === 3).map(d => ({ source, id: String(d.modId) })), incompatible: f.dependencies.filter(d => d.relationType === 5).map(d => ({ source, id: String(d.modId) })) };
+  }
+  async resolveContent(source,id,profile,versionId,type='mod'){
+    if(type==='mod')return this.resolve(source,id,profile,versionId);
+    if(!['resourcepack','shader','datapack','modpack'].includes(type))throw Error('Unknown content type.');
+    if(type==='modpack'&&source!=='petal')throw Error('Use a Petal formatVersion=1 modpack. Native mrpack/CurseForge pack imports are not supported yet.');
+    let project,version,file;
+    if(source==='petal'){
+      project=await this.petal(`/projects/${encodeURIComponent(id)}`);if(project.type!==type)throw Error('Project content type mismatch.');
+      const versions=versionId?[await this.petal(`/versions/${encodeURIComponent(versionId)}`)]:(await this.petal(`/projects/${encodeURIComponent(id)}/versions?version=${encodeURIComponent(profile.version)}&limit=100`)).versions;
+      version=versions.find(v=>v.projectId===id&&v.status==='published'&&v.type===type&&v.gameVersions.includes(profile.version));
+      if(!version?.file||version.file.algorithm!=='sha512'||!/^[a-f0-9]{128}$/i.test(version.file.hash)||!isPetalDownload(new URL(version.file.url),this.petalUrl)||new URL(version.file.url).pathname!==`/v1/versions/${version.id}/download`)throw Error('No compatible authorized Petal pack download.');file=version.file;
+    }else if(source==='modrinth'){
+      project=await this.mr(`/project/${encodeURIComponent(id)}`);
+      const versions=versionId?[await this.mr(`/version/${encodeURIComponent(versionId)}`)]:await this.mr(`/project/${encodeURIComponent(id)}/version?${new URLSearchParams({game_versions:JSON.stringify([profile.version])})}`);
+      version=versions.find(v=>v.project_id===project.id&&v.game_versions.includes(profile.version)&&v.loaders.includes(type==='datapack'?'datapack':type==='resourcepack'?'minecraft':'iris'));
+      if(type!=='datapack'&&project.project_type!==type||!version)throw Error('No compatible provider pack version.');
+      const f=version.files.find(f=>f.primary)||version.files[0];if(!f)throw Error('No provider file.');file={name:f.filename,url:f.url,hash:f.hashes.sha512||f.hashes.sha1,algorithm:f.hashes.sha512?'sha512':'sha1'};
+    }else if(source==='curseforge'){
+      project=(await this.cf(`/mods/${encodeURIComponent(id)}`)).data;
+      const classes=(await this.cf('/categories?gameId=432&classesOnly=true')).data;
+      const pattern={resourcepack:/resource.?packs|texture.?packs/i,shader:/shader/i,datapack:/data.?packs/i}[type];
+      if(!classes.some(c=>c.id===project.classId&&pattern.test(c.name)))throw Error('Provider project type mismatch.');
+      const versions=versionId?[(await this.cf(`/mods/${encodeURIComponent(id)}/files/${encodeURIComponent(versionId)}`)).data]:(await this.cf(`/mods/${encodeURIComponent(id)}/files?${new URLSearchParams({gameVersion:profile.version,pageSize:'50'})}`)).data;
+      version=versions.find(v=>v.modId===project.id&&v.isAvailable&&v.gameVersions.includes(profile.version));
+      if(!version?.downloadUrl)throw Error('The author has not authorized this API download. Download manually from the project page.');
+      const hash=version.hashes.find(h=>h.algo===1);if(!hash)throw Error('Provider checksum is required.');file={name:version.fileName,url:version.downloadUrl,hash:hash.value,algorithm:'sha1'};
+    }else throw Error('Unknown content source.');
+    return {source,id:String(project.id),title:project.title||project.name,versionId:String(version.id),type,file,dependencies:[],incompatible:[]};
   }
 }
 module.exports = { Catalog, json };

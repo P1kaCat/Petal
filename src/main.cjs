@@ -8,6 +8,7 @@ const { Store, safeFilename, atomicJSON } = require('./store.cjs');
 const { Catalog } = require('./catalog.cjs');
 const { petalOrigin } = require('./petal-url.cjs');
 const { installMods, assertNotRequired } = require('./mods.cjs');
+const {installContent}=require('./content.cjs');
 const { launchGame, prepareGame } = require('./game.cjs');
 const { MinecraftMetadata } = require('./minecraft-metadata.cjs');
 app.commandLine.appendSwitch('lang', 'en-US');
@@ -55,6 +56,8 @@ const handlers = {
     return store.create(options);
   }),
   install: ({ profileId, source, id }) => exclusive(() => { editable(profileId); return installMods(store, catalog, profileId, source, id, notify); }),
+  installContent: ({profileId,source,id,type,world,includeOptional=false})=>exclusive(()=>{editable(profileId);return installContent(store,catalog,profileId,source,id,type,{world,includeOptional},notify);}),
+  worlds:async({profileId})=>{const root=path.join(store.directory(profileId),'saves');try{return (await fs.readdir(root,{withFileTypes:true})).filter(e=>e.isDirectory()&&!e.isSymbolicLink()).map(e=>e.name);}catch(e){if(e.code==='ENOENT')return [];throw e;}},
   changeMod: ({ profileId, source, id, action }) => exclusive(async () => {
     const p = editable(profileId), mod = p.mods.find(m => m.source === source && m.id === id);
     if (!mod) throw new Error('Mod not found.');
