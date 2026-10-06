@@ -32,7 +32,8 @@ function createAuth({db,adminToken,publicMode,now=Date.now}){
     const principal=authenticate(req);if(principal?.kind!=='token')return;
     if(route.startsWith('/v1/admin/')||route.startsWith('/v1/auth/')||route.startsWith('/v1/me/tokens')||route.startsWith('/v1/me/mfa')||route==='/v1/me/email')fail(403,'Use an account session for security and moderation operations.');
     let scope;
-    if(route.startsWith('/v1/projects')||route.startsWith('/v1/versions')||route==='/v1/me/projects'||route==='/v1/me/invitations'||route.startsWith('/media/'))scope=['GET','HEAD'].includes(req.method)?'project:read':'project:write';
+    if(/^\/v1\/projects\/[^/]+\/follow$/.test(route))scope=['GET','HEAD'].includes(req.method)?'community:read':'community:write';
+    else if(route.startsWith('/v1/projects')||route.startsWith('/v1/versions')||route==='/v1/me/projects'||route==='/v1/me/invitations'||route.startsWith('/media/'))scope=['GET','HEAD'].includes(req.method)?'project:read':'project:write';
     else if(route.startsWith('/v1/reports')||route.startsWith('/v1/me/collections')||route.startsWith('/v1/me/notifications')||route.startsWith('/v1/me/follows'))scope=['GET','HEAD'].includes(req.method)?'community:read':'community:write';
     else if(route.startsWith('/v1/me')){if(!['GET','HEAD'].includes(req.method))fail(403,'Use an account session for account changes.');scope='account:read';}
     if(scope&&!principal.scopes.includes(scope))fail(403,'API token scope does not permit this action.');

@@ -1,5 +1,6 @@
 const {randomUUID}=require('node:crypto');
 const {fail}=require('./http.cjs');
+const {notifyApproval}=require('./community.cjs');
 function createModeration({db,auth,projects}){
   async function decide(principal,{revisionId,action,reason}){
     auth.requirePermission(principal,'moderate');
@@ -10,6 +11,7 @@ function createModeration({db,auth,projects}){
       if(action==='approve'){
         const p=projects.get(revision.projectId);if(p.revisionId!==revision.baseRevisionId)fail(409,'Project changed since this revision. Submit an updated revision.');
         db.prepare('UPDATE projects SET title=?,description=?,license=?,sourceUrl=?,iconId=?,gallery=?,revisionId=? WHERE id=?').run(content.title,content.description,content.license,content.sourceUrl,content.iconId,JSON.stringify(content.gallery),revisionId,p.id);
+        notifyApproval(db,{projectId:p.id,revisionId});
       }
       const status=action==='approve'?'approved':action==='reject'?'rejected':'withdrawn';
       if(!db.prepare("UPDATE revisions SET status=? WHERE id=? AND status='pending'").run(status,revisionId).changes)fail(409,'Revision is no longer pending.');

@@ -47,6 +47,10 @@
     {
       "name": "Minecraft",
       "description": "Minecraft operations"
+    },
+    {
+      "name": "Community",
+      "description": "Private follows, collections and approved-update notifications."
     }
   ],
   "paths": {
@@ -3654,6 +3658,777 @@
           }
         }
       }
+    },
+    "/v1/projects/{projectId}/follow": {
+      "get": {
+        "operationId": "get_community__v1_projects__projectId__follow",
+        "summary": "Check follow state",
+        "description": "Check follow state Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_community__v1_projects__projectId__follow",
+        "summary": "Follow a published project",
+        "description": "Follow a published project Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_community__v1_projects__projectId__follow",
+        "summary": "Unfollow a project",
+        "description": "Unfollow a project Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/follows": {
+      "get": {
+        "operationId": "get_community__v1_me_follows",
+        "summary": "List followed published projects",
+        "description": "List followed published projects Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/collections": {
+      "get": {
+        "operationId": "get_community__v1_me_collections",
+        "summary": "List private collections",
+        "description": "List private collections Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_community__v1_me_collections",
+        "summary": "Create a private collection",
+        "description": "Create a private collection Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/collections/{collectionId}": {
+      "get": {
+        "operationId": "get_community__v1_me_collections__collectionId_",
+        "summary": "Read private collection items",
+        "description": "Read private collection items Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_community__v1_me_collections__collectionId_",
+        "summary": "Delete own collection",
+        "description": "Delete own collection Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/collections/{collectionId}/items/{projectId}": {
+      "post": {
+        "operationId": "post_community__v1_me_collections__collectionId__items__projectId_",
+        "summary": "Add a published project to own collection",
+        "description": "Add a published project to own collection Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_community__v1_me_collections__collectionId__items__projectId_",
+        "summary": "Remove a project from own collection",
+        "description": "Remove a project from own collection Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/notifications": {
+      "get": {
+        "operationId": "get_community__v1_me_notifications",
+        "summary": "List own in-app notifications",
+        "description": "List own in-app notifications Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/notifications/{notificationId}/read": {
+      "post": {
+        "operationId": "post_community__v1_me_notifications__notificationId__read",
+        "summary": "Mark own notification read",
+        "description": "Mark own notification read Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "notificationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/notifications/preferences": {
+      "get": {
+        "operationId": "get_community__v1_me_notifications_preferences",
+        "summary": "Read notification preference",
+        "description": "Read notification preference Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_community__v1_me_notifications_preferences",
+        "summary": "Set in-app notification preference",
+        "description": "Set in-app notification preference Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "releaseUpdates"
+                ],
+                "properties": {
+                  "releaseUpdates": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4425,104 +5200,6 @@
           "scopes",
           "expiresAt"
         ]
-      },
-      "PackManifest": {
-        "title": "Petal pack manifest v1",
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "formatVersion",
-          "name",
-          "gameVersion",
-          "loader",
-          "files"
-        ],
-        "properties": {
-          "formatVersion": {
-            "const": 1
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "gameVersion": {
-            "type": "string",
-            "minLength": 1
-          },
-          "loader": {
-            "enum": [
-              "vanilla",
-              "fabric",
-              "forge",
-              "neoforge",
-              "quilt"
-            ]
-          },
-          "files": {
-            "type": "array",
-            "minItems": 1,
-            "maxItems": 100,
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "source",
-                "projectId",
-                "versionId",
-                "type",
-                "target",
-                "hash",
-                "algorithm",
-                "optional"
-              ],
-              "properties": {
-                "source": {
-                  "enum": [
-                    "modrinth",
-                    "curseforge",
-                    "petal"
-                  ]
-                },
-                "projectId": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 100
-                },
-                "versionId": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 100
-                },
-                "type": {
-                  "enum": [
-                    "mod",
-                    "resourcepack",
-                    "shader",
-                    "datapack"
-                  ]
-                },
-                "target": {
-                  "type": "string",
-                  "pattern": "^(mods/[^/]+\\.jar|resourcepacks/[^/]+\\.zip|shaderpacks/[^/]+\\.zip|datapacks/[^/]+\\.zip)$"
-                },
-                "hash": {
-                  "type": "string",
-                  "pattern": "^([a-fA-F0-9]{40}|[a-fA-F0-9]{128})$"
-                },
-                "algorithm": {
-                  "enum": [
-                    "sha1",
-                    "sha512"
-                  ]
-                },
-                "optional": {
-                  "type": "boolean"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "responses": {

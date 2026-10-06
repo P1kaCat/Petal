@@ -24,6 +24,7 @@ const {createTokens}=require('./tokens.cjs');
 const {page}=require('./pagination.cjs');
 const {createReadiness}=require('./operations.cjs');
 const {TYPES,safeContentFilename}=require('../src/content-format.cjs');
+const {createCommunityRoutes,notifyApproval}=require('./community.cjs');
 const text = (value, label, max = 200) => {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) fail(400, `Invalid ${label}.`);
   return value.trim();
@@ -68,6 +69,7 @@ async function createPetalServer(options = {}) {
   const accountRoutes=createAccountRoutes({db,accounts,auth,tokens,publicMode,now});
   const projects=createProjects({db,auth});
   const moderationService=createModeration({db,auth,projects});
+  const communityRoutes=createCommunityRoutes({db,auth,projects});
   const maxUpload = options.maxUploadBytes || Number(process.env.PETAL_API_UPLOAD_MB || 64) * 1024 * 1024;
   const maxStorage = options.maxStorageBytes || Number(process.env.PETAL_API_STORAGE_MB || 2048) * 1024 * 1024;
   if (!Number.isSafeInteger(maxUpload) || !Number.isSafeInteger(maxStorage) || maxUpload < 1 || maxStorage < 1) throw new Error('Invalid upload or storage limits.');
@@ -120,12 +122,13 @@ async function createPetalServer(options = {}) {
       auth.validateCSRF(req);
       auth.validateScopes(req,route);
       if(await accountRoutes(req,res,route,url))return;
+      if(await communityRoutes(req,res,route,url))return;
       if(await projectRoutes(req,res,route,url))return;
       if (req.method === 'GET' && route === '/health') return json(res, 200, { status: 'ok', service: 'Petal API', version: '1' });
       if(req.method==='GET'&&route==='/ready'){const result=await readiness();return json(res,result.ready?200:503,{status:result.status,checks:result.checks});}
       if(req.method==='GET'&&route==='/openapi.yaml'){res.writeHead(200,{'Content-Type':'application/yaml; charset=utf-8'});return res.end(await fs.readFile(path.join(__dirname,'openapi.yaml')));}
       if (req.method === 'GET' && route === '/v1/game/versions') return json(res,200,await metadata.versions());
-      const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/account':'account.html','/api':'api-docs.html','/account.js':'account.js','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/project.js':'project.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};
+      const assets={'/':'discover.html','/discover':'discover.html','/dashboard':'index.html','/account':'account.html','/library':'library.html','/library.js':'library.js','/api':'api-docs.html','/account.js':'account.js','/portal.js':'portal.js','/portal.css':'portal.css','/site.js':'site.js','/project.js':'project.js','/site.css':'site.css','/favicon.svg':'favicon.svg','/minecraft-panorama.png':'../src/assets/minecraft-cherry-panorama.png'};
       if (req.method === 'GET' && Object.hasOwn(assets,route)) {
         const filename=assets[route];
         const data=await fs.readFile(route==='/minecraft-panorama.png'?path.join(__dirname,filename):path.join(__dirname,'public',filename));
@@ -285,7 +288,10 @@ async function createPetalServer(options = {}) {
           await storage.publish(v);
         }
         requireAdmin(req);
-        if(!db.prepare('UPDATE versions SET status=?,reviewNote=?,reviewedAt=? WHERE id=? AND status=? AND reviewedAt IS ?').run(data.action === 'approve' ? 'published' : 'rejected', note, new Date().toISOString(), v.id,v.status,v.reviewedAt).changes)fail(409,'Version changed while reviewing.');
+        db.exec('BEGIN IMMEDIATE');try{
+          if(!db.prepare('UPDATE versions SET status=?,reviewNote=?,reviewedAt=? WHERE id=? AND status=? AND reviewedAt IS ?').run(data.action === 'approve' ? 'published' : 'rejected', note, new Date().toISOString(), v.id,v.status,v.reviewedAt).changes)fail(409,'Version changed while reviewing.');
+          if(data.action==='approve'&&v.status!=='published')notifyApproval(db,{projectId:v.projectId,versionId:v.id});db.exec('COMMIT');
+        }catch(error){db.exec('ROLLBACK');throw error;}
         return json(res, 200, versionView(db.prepare('SELECT * FROM versions WHERE id=?').get(v.id)));
       }
       const pageRoute = /^\/projects\/([a-f0-9-]{36})$/.exec(route);
