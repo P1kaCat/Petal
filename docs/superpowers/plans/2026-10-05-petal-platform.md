@@ -46,7 +46,7 @@ Each task uses focused regression checks and an explicit commit. Publish validat
 
 - [x] Specification approved in conversation.
 - [x] Plans written and self-reviewed for specification coverage, interfaces, and failure cases.
-- [ ] User reviews the implementation plans and selects execution method.
-- [ ] Execute the selected method, update checkboxes only after checks pass, and report actual results at each checkpoint.
+- [x] User reviews the implementation plans and selects execution method.
+- [ ] Execute the selected method, update checkboxes only after checks pass, and report actual results at each checkpoint. **Status: code/unit evidence complete where applicable; external acceptance pending. See VERIFICATION.md and docs/DELIVERY.md.**
 
-Recommended method: **Native**, with implementation in the current session and an independent final review, because the launcher/API interfaces need coordinated edits and the user prioritizes rapid progress. **Subagent-driven** remains an alternative with per-task independent implementation/review. No product implementation starts until this written-plan handoff is approved.
+Selected method: **Native**, with implementation in the current session and an independent final review, because the launcher/API interfaces need coordinated edits and the user prioritizes rapid progress. **Subagent-driven** remains an alternative with per-task independent implementation/review. The user approved direct execution in conversation. Implementation and the independent final review are complete; Linux deployment acceptance remains pending.

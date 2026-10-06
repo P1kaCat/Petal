@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/header.svg" alt="Petal — Your Minecraft, in bloom. Modrinth + CurseForge." width="100%">
+  <img src="docs/media/header.svg" alt="Petal — Your Minecraft, in bloom. Modrinth, CurseForge and Petal." width="100%">
 </p>
 
 <p align="center">
@@ -26,20 +26,28 @@
 
 ## A little space for a bigger world
 
-Petal brings **Modrinth and CurseForge** into a shared discovery interface,
+Petal brings **Modrinth, CurseForge, and its own Petal catalog** into a shared discovery interface,
 while keeping each platform's projects and identifiers distinct. Create a
 profile, choose your Minecraft version and mod loader, and find mods that fit.
 
 The Windows alpha uses a dark interface, a violet flower identity, and a real
 Minecraft cherry-grove panorama. **The app interface and repository documentation are in English.**
 
-> **Development preview · v0.1.2**
+> **Development preview · v0.2.0**
 > Modrinth installation and Minecraft preparation have been exercised with real
 > downloads. CurseForge requires an authorized API key. Microsoft sign-in needs
 > an approved application registration. These two authenticated paths still need
 > end-to-end verification. See [validation details](VERIFICATION.md).
 
 ## A look inside
+
+### A home for creators
+
+The local website provides public discovery, project pages, author profiles and
+a separate creator dashboard. Approved Petal releases can be downloaded on the
+website or installed through the launcher.
+
+![Petal website with authentic Minecraft imagery](docs/media/website.jpg)
 
 ### Discover your next adventure
 
@@ -64,17 +72,24 @@ prepare the game, or open an instance folder from the same screen.
 
 | Feature | What the alpha provides |
 | :--- | :--- |
-| **Two catalogs** | Modrinth discovery and installation; CurseForge integration requiring an authorized key. |
+| **Three catalogs** | Modrinth, authorized CurseForge integration, and the configured Petal server. |
+| **Petal hosting** | Own mod server, author accounts, private submissions, administrator review, and approved releases in the launcher. |
 | **Separate profiles** | Dedicated folders for each instance's saves, mods, and configuration. |
-| **Three mod loaders** | Automatic preparation for Fabric, Forge, and NeoForge. |
+| **Runtime choices** | Vanilla, Fabric, Forge, NeoForge, and Quilt with compatible loader version selection. |
+| **Official Minecraft catalog** | Releases, snapshots, historical beta and alpha versions, with cached metadata. |
 | **Minecraft + Java** | Game files and the required Java runtime downloaded from official services. |
 | **Dependency handling** | Required dependencies, declared incompatibility checks, and file checksum verification. |
 | **Mod management** | Install, enable, disable, remove, update, and manually import `.jar` files. |
+| **Packs and shaders** | Host and install resource packs, shaders, datapacks in a selected world, and reference-based Petal modpacks. |
+| **Creator accounts** | Email verification and recovery, authenticator MFA, scoped API tokens, author teams and moderated revisions. |
+| **Personal library** | Follow published projects, save private collections and receive approved-update notifications. |
+| **Hosting operations** | Persistent upload quotas, quarantine, readiness, checksummed backups and isolated restore. |
+| **Bloom integration** | Container packaging, per-project persistent volumes and protected secret references; Linux acceptance still pending. |
 | **Local credential storage** | Windows secure storage for the API key and refresh credentials; no bundled keys. |
 
 ## Start growing
 
-Install **Node.js 22 or later**, **pnpm 11**, and Git, then run:
+Install **Node.js 24 or later**, **pnpm 11**, and Git, then run:
 
 ```powershell
 git clone https://github.com/P1kaCat/Petal.git
@@ -93,13 +108,31 @@ To create the Windows portable executable:
 pnpm dist
 ```
 
-The output is `dist/Petal 0.1.2.exe`. Compiled builds and installed dependencies
+The output is `dist/Petal 0.2.0.exe`. Compiled builds and installed dependencies
 are not checked into this repository. This development executable is unsigned.
 
 See the [setup guide](docs/SETUP.md) for CurseForge configuration, Microsoft
 authentication, Java selection, data storage, and development checks.
 
 ## Where the alpha stands
+
+### Give your mods a home
+
+The **[Petal API & creator portal](api/README.md)** hosts mods on your own
+server. Authors create accounts and submit releases; administrators review
+them before publication. Published mods can be searched and installed through
+the launcher's **Petal** tab, with dependency handling and SHA-512 verification.
+
+Run the server locally with Node.js 24 or later:
+
+```powershell
+pnpm api
+```
+
+Open `http://127.0.0.1:4318` for the public website, `/account` for accounts and
+`/dashboard` for the creator portal, then set the server URL under
+**Settings → Petal API** in the launcher. The [API guide](api/README.md)
+documents author submission, moderation, endpoints, deployment, and preview limits.
 
 **Implemented:** instance management, both catalog integrations, dependency-aware
 mod installation, per-mod updates, loader preparation, and a Microsoft sign-in
@@ -108,9 +141,17 @@ flow that requires the project's own approved client ID.
 **Still to verify:** authorized CurseForge requests and downloads, Microsoft
 sign-in, and an authenticated Minecraft game session.
 
-**Not implemented yet:** Modrinth `.mrpack` and CurseForge modpack import/export,
-shader and resource-pack management, multiple accounts, and automatic recovery
-from a process crash during file replacement.
+**Not implemented yet:** native Modrinth `.mrpack` and CurseForge modpack conversion,
+bundled pack overrides, automatic shader-loader installation, multiple Microsoft
+accounts in the launcher, public collection sharing, email broadcasts, and automatic
+recovery from a process crash during launcher file replacement. Petal pack v1 is a
+reference-based format; see [content support](docs/CONTENT_TYPES.md).
+
+The website and API are a single Node.js service with a local SQLite database and
+persistent files. A root Dockerfile and [Bloom hosting guide](docs/OPERATIONS.md)
+are included. Docker execution, PostgreSQL integration and an actual public rollout
+still require Linux infrastructure. See the [delivery report](docs/DELIVERY.md)
+for the implemented scope, review fixes, decisions and remaining acceptance checks.
 
 Compatibility checks cover declared conflicts and file collisions; they cannot
 guarantee that every combination of mods works together. Projects with matching
@@ -142,3 +183,7 @@ owners' terms. See [third-party notices](THIRD_PARTY_NOTICES.md) and
 <p align="center">
   <sub>Created by <a href="https://github.com/P1kaCat">P1kaCat</a> · Independent Minecraft launcher · Not affiliated with Mojang, Microsoft, Modrinth, or CurseForge</sub>
 </p>
+
+The [account page](docs/ACCOUNTS.md) includes email verification, password recovery,
+active-session revocation and authenticator enrollment. Public operator access uses
+verified accounts with MFA and a one-time bootstrap.

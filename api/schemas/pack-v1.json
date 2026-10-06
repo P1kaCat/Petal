@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Petal pack manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "name",
+    "gameVersion",
+    "loader",
+    "files"
+  ],
+  "properties": {
+    "formatVersion": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "gameVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "loader": {
+      "enum": [
+        "vanilla",
+        "fabric",
+        "forge",
+        "neoforge",
+        "quilt"
+      ]
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "projectId",
+          "versionId",
+          "type",
+          "target",
+          "hash",
+          "algorithm",
+          "optional"
+        ],
+        "properties": {
+          "source": {
+            "enum": [
+              "modrinth",
+              "curseforge",
+              "petal"
+            ]
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "type": {
+            "enum": [
+              "mod",
+              "resourcepack",
+              "shader",
+              "datapack"
+            ]
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^(mods/[^/]+\\.jar|resourcepacks/[^/]+\\.zip|shaderpacks/[^/]+\\.zip|datapacks/[^/]+\\.zip)$"
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^([a-fA-F0-9]{40}|[a-fA-F0-9]{128})$"
+          },
+          "algorithm": {
+            "enum": [
+              "sha1",
+              "sha512"
+            ]
+          },
+          "optional": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

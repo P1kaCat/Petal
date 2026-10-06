@@ -20,7 +20,7 @@
     <div class="sidebar-divider"></div>
     <div class="workspace-label profile-label">ACTIVE PROFILE <button id="sidebar-create" aria-label="Create a profile">＋</button></div>
     <div id="sidebar-profiles"></div>
-    <div class="sidebar-bottom"><span class="status-dot"></span> Two sources. One universe.<small>Petal Launcher · version 0.1.2</small></div>
+    <div class="sidebar-bottom"><span class="status-dot"></span> Three catalogs. One universe.<small>Petal Launcher · version 0.2.0</small></div>
   </aside>
   <div class="shell">
     <header class="topbar"><div><span class="crumb">Petal</span><span class="slash">/</span><span id="breadcrumb">Discover</span></div><button id="account-button" class="account"><span class="avatar">◡</span><span id="account-name">Connect Microsoft</span><span>↗</span></button></header>
@@ -33,11 +33,16 @@
       <div class="dialog-top"><span class="eyebrow">A FRESH START</span><button type="button" id="close-dialog" class="icon-button" aria-label="Close">×</button></div>
       <h2>Create your world.</h2><p>One profile, its mods, its saves. Everything stays together.</p>
       <label>Profile name<input id="profile-name" required maxlength="60" placeholder="My adventure" autocomplete="off"></label>
-      <div class="form-row"><label>Minecraft version<input id="profile-version" list="minecraft-versions" required pattern="[0-9]+\.[0-9]+(\.[0-9]+)?" value="1.21.1"><datalist id="minecraft-versions"></datalist></label><label>Mod loader<select id="profile-loader"><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="neoforge">NeoForge</option></select></label></div>
+      <div class="form-row"><label>Version category<select id="version-category"><option value="release">Releases</option><option value="snapshot">Snapshots and prereleases</option><option value="old_beta">Historical beta</option><option value="old_alpha">Historical alpha</option><option value="all">All versions</option></select></label><button type="button" class="outline" id="refresh-versions">Refresh versions</button></div>
+      <label>Minecraft version<input id="profile-version" list="minecraft-versions" required maxlength="100" value="1.21.1" autocomplete="off"><datalist id="minecraft-versions"></datalist></label>
+      <div class="form-row"><label>Runtime<select id="profile-loader"><option value="fabric">Fabric</option></select></label><label>Loader version<select id="profile-loader-version" required></select></label></div>
+      <label><input id="loader-prerelease" type="checkbox">Include prerelease loaders</label>
+      <p id="metadata-status" role="status"></p>
       <p id="dialog-error" class="error-text" role="alert"></p>
       <button type="submit" class="primary wide">Create profile <span>＋</span></button>
     </form>
   </dialog>
+  <script src="profile-selection.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

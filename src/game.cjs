@@ -6,6 +6,8 @@ const { json } = require('./catalog.cjs');
 const { retryDownload } = require('./retry.cjs');
 const { Agent } = require('undici');
 const { resolveAgent } = require('@xmcl/file-transfer');
+const { validateManifest } = require('./minecraft-metadata.cjs');
+const { getLoader } = require('./loaders/index.cjs');
 // Each origin gets a bounded connection pool, including asset and range requests.
 const agent = resolveAgent({ dispatcher: new Agent({ connections: 6, pipelining: 1, connect: { timeout: 30000 }, headersTimeout: 60000, bodyTimeout: 60000 }) });
 async function text(url) {
@@ -22,7 +24,7 @@ async function prepareGame(store, profileId, notify = () => {}) {
   const profile = store.profile(profileId);
   const resources = path.join(store.root, 'minecraft');
   const manifest = await installer.getVersionList();
-  const meta = manifest.versions.find(v => v.id === profile.version);
+  const meta = validateManifest(manifest.versions).find(v => v.id === profile.version);
   if (!meta) throw new Error('This Minecraft version is missing from the official manifest.');
   const details = await json(meta.url);
   let javaPath = store.data.settings.javaPath;
@@ -47,29 +49,9 @@ async function prepareGame(store, profileId, notify = () => {}) {
   let version = profile.runtimeVersion;
   if (!version) {
     notify(`Installing ${profile.loader}…`);
-    if (profile.loader === 'fabric') {
-      const artifacts = await installer.getLoaderArtifactListFor(profile.version);
-      const artifact = artifacts.find(a => a.loader.stable) || artifacts[0];
-      if (!artifact) throw new Error('Fabric has no loader for this version.');
-      version = await installer.installFabric(artifact, resources);
-      profile.loaderVersion = artifact.loader.version;
-    } else if (profile.loader === 'forge') {
-      const promotions = await json('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
-      const forge = promotions.promos[`${profile.version}-recommended`] || promotions.promos[`${profile.version}-latest`];
-      if (!forge) throw new Error('Forge has no loader for this version.');
-      const artifact = `${profile.version}-${forge}`;
-      const url = `https://maven.minecraftforge.net/net/minecraftforge/forge/${artifact}/forge-${artifact}-installer.jar`;
-      const sha1 = (await text(`${url}.sha1`)).trim().split(/\s/)[0];
-      version = await retryDownload(() => installer.installForge({ mcversion: profile.version, version: forge, installer: { path: url, sha1 } }, resources, { java: javaPath, mavenHost: 'https://maven.minecraftforge.net/', agent }), notify);
-      profile.loaderVersion = forge;
-    } else {
-      const xml = await text('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml');
-      const versions = [...xml.matchAll(/<version>([^<]+)<\/version>/g)].map(m => m[1]);
-      const neo = selectNeoForge(versions, profile.version);
-      if (!neo) throw new Error('NeoForge has no compatible stable version.');
-      version = await retryDownload(() => installer.installNeoForged('neoforge', neo, resources, { java: javaPath, agent }), notify);
-      profile.loaderVersion = neo;
-    }
+    const installed = await getLoader(profile.loader).install({profile,resources,javaPath,agent,notify});
+    version = installed.runtimeVersion;
+    profile.loaderVersion = installed.loaderVersion;
     profile.runtimeVersion = version;
     await store.save();
   }
@@ -82,6 +64,6 @@ async function launchGame(store, profileId, account, notify) {
   if (!account?.profile || account.isDemo()) throw new Error('Sign in with a Microsoft account that owns Minecraft Java.');
   const game = await prepareGame(store, profileId, notify);
   notify('Starting Minecraft…');
-  return launch({ gamePath: game.directory, resourcePath: game.resources, javaPath: game.javaPath, version: game.version, gameProfile: { id: account.profile.id, name: account.profile.name }, accessToken: account.mcToken, userType: 'msa', features: { petal_session: { clientid: store.data.settings.microsoftClientId, auth_xuid: account.xuid || '0' } }, maxMemory: store.data.settings.memory, minMemory: 512, launcherName: 'Petal', launcherBrand: '0.1.2', extraExecOption: { windowsHide: true } });
+  return launch({ gamePath: game.directory, resourcePath: game.resources, javaPath: game.javaPath, version: game.version, gameProfile: { id: account.profile.id, name: account.profile.name }, accessToken: account.mcToken, userType: 'msa', features: { petal_session: { clientid: store.data.settings.microsoftClientId, auth_xuid: account.xuid || '0' } }, maxMemory: store.data.settings.memory, minMemory: 512, launcherName: 'Petal', launcherBrand: '0.2.0', extraExecOption: { windowsHide: true } });
 }
 module.exports = { prepareGame, launchGame, selectNeoForge };

@@ -4,7 +4,7 @@
 
 ## Run the source
 
-On Windows, install Node.js 22 or later, pnpm 11, and Git:
+On Windows, install Node.js 24 or later, pnpm 11, and Git:
 
 ```powershell
 git clone https://github.com/P1kaCat/Petal.git
@@ -85,7 +85,7 @@ connection pool and three retry attempts; retries reuse verified cache files.
 pnpm dist
 ```
 
-The unsigned development build is written to `dist/Petal 0.1.2.exe`. It runs
+The unsigned development build is written to `dist/Petal 0.2.0.exe`. It runs
 without Node.js installed. Generated builds are excluded from Git.
 
 ## Checks
@@ -110,7 +110,11 @@ Remove-Item Env:PETAL_DATA_DIR
 ```
 
 The app checks profile creation, a real Modrinth installation, persistent
-settings, and IPC rejection, saves reports and screenshots, then closes.
+settings, unknown IPC rejection, snapshot selection and invalid loader arguments,
+saves reports and screenshots, then closes. On memory-constrained Windows PCs,
+build with `NODE_OPTIONS=--max-old-space-size=512` and
+`ELECTRON_BUILDER_COMPRESSION_LEVEL=0` if archive compression runs out of memory.
+This produces a larger portable executable; it does not alter application behavior.
 See [VERIFICATION.md](../VERIFICATION.md) for the validated versions and limits.
 
 ## Local data
@@ -128,7 +132,10 @@ to another computer. Never publish these files or game caches.
 - Handled download or persistence failures restore the previous installation;
   automatic recovery after a sudden process crash during copying is pending.
 - Updates are per mod; pinned dependencies prevent incompatible updates.
-- This alpha manages `.jar` mods. Modpack import/export, shaders, resource packs,
-  and multiple accounts are not implemented.
+- The alpha manages mods, resource packs, shaders, datapacks in a selected world,
+  and reference-based Petal modpacks. Native `.mrpack`/CurseForge conversion,
+  bundled overrides and automatic shader-loader installation are pending.
+- Multiple Microsoft accounts in the launcher are not implemented. Website
+  accounts, scoped integration tokens and private collections are supported.
 - Keep the pinned `@xmcl` versions unless installation and launch preparation
   are revalidated after a dependency upgrade.

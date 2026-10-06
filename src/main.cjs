@@ -6,10 +6,13 @@ const { createHash } = require('node:crypto');
 const { Auth } = require('msmc');
 const { Store, safeFilename, atomicJSON } = require('./store.cjs');
 const { Catalog } = require('./catalog.cjs');
+const { petalOrigin } = require('./petal-url.cjs');
 const { installMods, assertNotRequired } = require('./mods.cjs');
+const {installContent}=require('./content.cjs');
 const { launchGame, prepareGame } = require('./game.cjs');
+const { MinecraftMetadata } = require('./minecraft-metadata.cjs');
 app.commandLine.appendSwitch('lang', 'en-US');
-let win, store, catalog, account, busy = false, loginBusy = false;
+let win, store, catalog, metadata, account, busy = false, loginBusy = false;
 let secrets = {};
 const running = new Map();
 const page = pathToFileURL(path.join(__dirname, 'index.html')).href;
@@ -25,7 +28,7 @@ async function saveSecrets() {
   await atomicJSON(path.join(store.root, 'credentials.json'), { encrypted: safeStorage.encryptString(JSON.stringify(secrets)).toString('base64') });
 }
 function snapshot() {
-  return { ...structuredClone(store.data), account: account?.profile ? { name: account.profile.name, id: account.profile.id } : null, curseforgeEnabled: !!secrets.curseforgeKey, root: store.root, running: [...running.keys()], busy };
+  return { ...structuredClone(store.data), account: account?.profile ? { name: account.profile.name, id: account.profile.id } : null, curseforgeEnabled: !!secrets.curseforgeKey, petalEnabled: !!store.data.settings.petalApiUrl, root: store.root, running: [...running.keys()], busy };
 }
 async function exclusive(operation) {
   if (busy) throw new Error('An operation is already in progress.');
@@ -36,13 +39,25 @@ async function exclusive(operation) {
 function editable(id) { if (running.has(id)) throw new Error('Close Minecraft before modifying this profile.'); return store.profile(id); }
 const handlers = {
   state: () => snapshot(),
-  versions: async () => (await catalog.mr('/tag/game_version')).filter(v => v.version_type === 'release').map(v => v.version),
+  versions: options => {
+    if (options.refresh !== undefined && typeof options.refresh !== 'boolean') throw new Error('Invalid refresh option.');
+    return metadata.versions({refresh:options.refresh});
+  },
+  loaders: options => {
+    if(typeof options.version !== 'string' || (options.includePrerelease !== undefined && typeof options.includePrerelease !== 'boolean')) throw new Error('Invalid loader selection.');
+    return metadata.loaderCatalog(options.version,{includePrerelease:options.includePrerelease});
+  },
   search: options => {
     const p = options.profileId ? store.profile(options.profileId) : null;
     return catalog.search({ ...options, version: p?.version, loader: p?.loader });
   },
-  createProfile: options => exclusive(() => store.create(options)),
+  createProfile: options => exclusive(async () => {
+    await metadata.assertSelection(options);
+    return store.create(options);
+  }),
   install: ({ profileId, source, id }) => exclusive(() => { editable(profileId); return installMods(store, catalog, profileId, source, id, notify); }),
+  installContent: ({profileId,source,id,type,world,includeOptional=false})=>exclusive(()=>{editable(profileId);return installContent(store,catalog,profileId,source,id,type,{world,includeOptional},notify);}),
+  worlds:async({profileId})=>{const root=path.join(store.directory(profileId),'saves');try{return (await fs.readdir(root,{withFileTypes:true})).filter(e=>e.isDirectory()&&!e.isSymbolicLink()).map(e=>e.name);}catch(e){if(e.code==='ENOENT')return [];throw e;}},
   changeMod: ({ profileId, source, id, action }) => exclusive(async () => {
     const p = editable(profileId), mod = p.mods.find(m => m.source === source && m.id === id);
     if (!mod) throw new Error('Mod not found.');
@@ -68,6 +83,7 @@ const handlers = {
   }),
   importJar: ({ profileId }) => exclusive(async () => {
     const p = editable(profileId);
+    if(p.loader === 'vanilla') throw new Error('Vanilla cannot load mods. Create a profile with a compatible mod loader.');
     const result = await dialog.showOpenDialog(win, { title: 'Import a manually downloaded mod', filters: [{ name: 'Minecraft mod', extensions: ['jar'] }], properties: ['openFile'] });
     if (result.canceled) return;
     const sourcePath = result.filePaths[0], name = safeFilename(path.basename(sourcePath));
@@ -84,11 +100,12 @@ const handlers = {
     const memory = Number(options.memory);
     if (!Number.isInteger(memory) || memory < 1024 || memory > 32768) throw new Error('Memory must be between 1 and 32 GB.');
     const clientId = String(options.microsoftClientId || '').trim();
+    const petalApiUrl = petalOrigin(options.petalApiUrl ?? store.data.settings.petalApiUrl ?? '');
     if (clientId && !/^[0-9a-f-]{36}$/i.test(clientId)) throw new Error('Invalid Microsoft client ID.');
     if (options.curseforgeKey !== undefined) secrets.curseforgeKey = String(options.curseforgeKey).trim();
     if (clientId !== store.data.settings.microsoftClientId) { account = null; delete secrets.refreshToken; }
     await saveSecrets();
-    store.data.settings = { memory, javaPath: String(options.javaPath || '').trim(), microsoftClientId: clientId };
+    store.data.settings = { memory, javaPath: String(options.javaPath || '').trim(), microsoftClientId: clientId, petalApiUrl };
     await store.save();
     return snapshot();
   }),
@@ -130,6 +147,10 @@ const handlers = {
   openFolder: ({ profileId }) => shell.openPath(store.directory(profileId)),
   openProject: async ({ source, id }) => {
     let url;
+    if (source === 'petal') {
+      if (!catalog.petalUrl || !/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid Petal project.');
+      return shell.openExternal(`${catalog.petalUrl}/projects/${id}`);
+    }
     if (source === 'modrinth') url = `https://modrinth.com/mod/${encodeURIComponent(id)}`;
     else if (source === 'curseforge') url = (await catalog.cf(`/mods/${encodeURIComponent(id)}`)).data.links.websiteUrl;
     else throw new Error('Unknown source.');
@@ -144,13 +165,14 @@ else {
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
     const root = process.env.PETAL_DATA_DIR || path.join(app.getPath('userData'), 'data');
+    metadata = new MinecraftMetadata({ cacheFile: path.join(root, 'minecraft-versions.json') });
     await fs.mkdir(root, { recursive: true });
     store = new Store(root); await store.load();
     try {
       const file = JSON.parse(await fs.readFile(path.join(root, 'credentials.json'), 'utf8'));
       secrets = JSON.parse(safeStorage.decryptString(Buffer.from(file.encrypted, 'base64')));
     } catch (e) { if (e.code !== 'ENOENT') dialog.showErrorBox('Petal', 'Unable to decrypt saved credentials. Sign in again and enter your CurseForge key.'); }
-    catalog = new Catalog(() => secrets.curseforgeKey);
+    catalog = new Catalog(() => secrets.curseforgeKey, fetch, () => store.data.settings.petalApiUrl);
     ipcMain.handle('petal:call', async (event, method, args) => {
       if (event.sender !== win.webContents || event.senderFrame.url !== page || !Object.hasOwn(handlers, method)) return { error: 'Action not allowed.' };
       try { return { data: await handlers[method](args || {}) }; }
@@ -185,7 +207,9 @@ else {
         throw new Error(`UI test timed out: ${expression}`);
       }
       if (!store.data.profiles.length) {
-        await win.webContents.executeJavaScript("document.querySelector('[data-action=create]').click(); document.querySelector('#profile-name').value='Cherry adventure'; document.querySelector('#create-form').requestSubmit()");
+        await win.webContents.executeJavaScript("document.querySelector('[data-action=create]').click(); document.querySelector('#profile-name').value='Cherry adventure'");
+        await until("!!document.querySelector('#profile-loader-version option') && !document.querySelector('#create-form button[type=submit]').disabled");
+        await win.webContents.executeJavaScript("document.querySelector('#create-form').requestSubmit()");
         await until("!!document.querySelector('.profile-detail')");
       } else {
         await win.webContents.executeJavaScript("document.querySelector('[data-view=profiles]').click()");
@@ -219,6 +243,12 @@ else {
       checks.push({ name: 'Unknown IPC method rejected', success: await win.webContents.executeJavaScript("window.petal.call('unknown').then(()=>false).catch(()=>true)") });
       await win.webContents.executeJavaScript("document.querySelector('#dismiss-notice').click()");
       await captureUI('settings.png');
+      await win.webContents.executeJavaScript("document.querySelector('[data-action=create]')?.click() || document.querySelector('#sidebar-create').click(); document.querySelector('#version-category').value='snapshot'; document.querySelector('#version-category').dispatchEvent(new Event('change')); document.querySelector('#profile-version').value='24w14a'; document.querySelector('#profile-version').dispatchEvent(new Event('input'))");
+      await until("!!document.querySelector('#profile-loader-version option') && !document.querySelector('#create-form button[type=submit]').disabled");
+      checks.push({name:'Snapshot category and compatible runtime selector',success:await win.webContents.executeJavaScript("document.querySelector('#minecraft-versions option[value=\"24w14a\"]') !== null && [...document.querySelector('#profile-loader').options].some(o=>o.value==='vanilla')")});
+      checks.push({name:'Invalid loader IPC arguments rejected',success:await win.webContents.executeJavaScript("window.petal.call('loaders',{version:5}).then(()=>false).catch(()=>true)")});
+      await captureUI('create-profile.png');
+      await win.webContents.executeJavaScript("document.querySelector('#create-dialog').close()");
       await win.webContents.executeJavaScript("document.querySelector('[data-view=discover]').click()");
       await until("!!document.querySelector('.mod-card') && !document.querySelector('.loading')");
       await captureUI('preview.png');

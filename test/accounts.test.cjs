@@ -1,0 +1,106 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const {scryptSync,randomUUID}=require('node:crypto');
+const {setup,admin}=require('./helpers/api.cjs');
+const password='accounts-test-password-1234';
+const register=(request,extra={})=>request('/v1/auth/register',{method:'POST',body:{username:'account_user',email:'author@example.test',password,...extra}});
+test('legacy scrypt login survives migration and website sessions enforce CSRF and revocation',async t=>{
+  const {db,request}=await setup(t);
+  db.prepare('INSERT INTO users(id,username,passwordHash,salt) VALUES(?,?,?,?)').run(randomUUID(),'legacy',scryptSync(password,'legacy-salt',64).toString('hex'),'legacy-salt');
+  const login=await request('/v1/auth/login',{method:'POST',body:{username:'legacy',password,sessionType:'cookie'}});
+  assert.equal(login.status,200);assert.equal(login.data.token,undefined);
+  const cookie=login.headers.get('set-cookie');assert.match(cookie,/HttpOnly/);assert.match(cookie,/SameSite=Lax/);
+  const headers={Cookie:cookie.split(';')[0]};
+  assert.equal((await request('/v1/auth/logout',{method:'POST',headers})).status,403);
+  const me=await request('/v1/me',{headers});assert.equal(me.data.user.username,'legacy');
+  assert.equal((await request('/v1/auth/logout',{method:'POST',headers:{...headers,'X-Petal-CSRF':me.data.csrf}})).status,200);
+  assert.equal((await request('/v1/me',{headers})).status,401);
+});
+test('verification and reset tokens are private, expire, and cannot be reused; reset revokes sessions',async t=>{
+  let now=Date.now();const mail=[];
+  const {request}=await setup(t,{now:()=>now,mail:{available:true,send:async message=>mail.push(message)}});
+  const account=await register(request);assert.equal(account.status,201);
+  const verify=mail.find(m=>m.template==='verify').variables.token;
+  assert.equal((await request('/v1/auth/verify',{method:'POST',body:{token:verify}})).status,200);
+  assert.equal((await request('/v1/auth/verify',{method:'POST',body:{token:verify}})).status,400);
+  const known=await request('/v1/auth/recovery',{method:'POST',body:{email:'author@example.test'}});
+  const unknown=await request('/v1/auth/recovery',{method:'POST',body:{email:'unknown@example.test'}});
+  assert.deepEqual(known.data,unknown.data);assert.equal(known.status,202);
+  const reset=mail.findLast(m=>m.template==='reset').variables.token;
+  now+=30*60000+1;
+  assert.equal((await request('/v1/auth/reset',{method:'POST',body:{token:reset,password}})).status,400);
+  await request('/v1/auth/recovery',{method:'POST',body:{email:'author@example.test'}});
+  const fresh=mail.findLast(m=>m.template==='reset').variables.token;
+  const issued=await request('/v1/me/tokens',{method:'POST',token:account.data.token,body:{name:'Recovery test',scopes:['account:read'],expiresAt:now+3600000}});assert.equal(issued.status,201);
+  assert.equal((await request('/v1/auth/reset',{method:'POST',body:{token:fresh,password:'changed-password-1234'}})).status,200);
+  assert.equal((await request('/v1/me',{token:issued.data.token})).status,401);
+  assert.equal((await request('/v1/auth/reset',{method:'POST',body:{token:fresh,password}})).status,400);
+  assert.equal((await request('/v1/me',{token:account.data.token})).status,401);
+  assert.equal((await request('/v1/auth/login',{method:'POST',body:{identifier:'author@example.test',password:'changed-password-1234'}})).status,200);
+  const second=await register(request,{username:'expired',email:'expired@example.test'});
+  assert.equal(second.status,201);now+=24*3600000+1;
+  assert.equal((await request('/v1/auth/verify',{method:'POST',body:{token:mail.findLast(m=>m.template==='verify').variables.token}})).status,400);
+});
+test('public mode disables master tokens and enforces verified email and MFA for current roles',async t=>{
+  const {request,db}=await setup(t,{publicUrl:'https://petal.example.test',mail:{available:true,send:async()=>{}}});
+  assert.equal((await request('/v1/admin/reviews',{token:admin})).status,401);
+  const a=await register(request);assert.equal(a.status,201);
+  const browserLogin=await request('/v1/auth/login',{method:'POST',body:{username:'account_user',password,sessionType:'cookie'}});assert.match(browserLogin.headers.get('set-cookie')||'',/Secure/);
+  assert.equal((await request('/v1/projects',{method:'POST',token:a.data.token,body:{}})).status,403);
+  db.prepare("UPDATE users SET roles='[\"moderator\"]',emailVerified=1 WHERE id=?").run(a.data.user.id);
+  assert.equal((await request('/v1/admin/reviews',{token:a.data.token})).status,403);
+  const otp=require('otplib');
+  const begin=await request('/v1/me/mfa/setup',{method:'POST',token:a.data.token,body:{password}});assert.equal(begin.status,200);
+  const code=await otp.generate({secret:begin.data.secret});
+  const confirm=await request('/v1/me/mfa/confirm',{method:'POST',token:a.data.token,body:{code}});assert.equal(confirm.status,200);assert.equal(confirm.data.recoveryCodes.length,10);
+  // Enrollment does not silently elevate a session; a new MFA-authenticated login is required.
+  assert.equal((await request('/v1/admin/reviews',{token:a.data.token})).status,403);
+  const login=await request('/v1/auth/login',{method:'POST',body:{username:'account_user',password,code:confirm.data.recoveryCodes[0]}});assert.equal(login.status,200);
+  assert.equal((await request('/v1/admin/reviews',{token:login.data.token})).status,200);
+  assert.equal((await request('/v1/auth/login',{method:'POST',body:{username:'account_user',password,code:confirm.data.recoveryCodes[0]}})).status,401);
+  db.prepare("UPDATE users SET roles='[]' WHERE id=?").run(a.data.user.id);
+  assert.equal((await request('/v1/admin/reviews',{token:login.data.token})).status,403);
+});
+test('session listing and owner revocation do not expose credentials',async t=>{
+  const {request}=await setup(t);const a=await register(request);
+  const list=await request('/v1/me/sessions',{token:a.data.token});assert.equal(list.status,200);
+  assert.equal(list.data.sessions.length,1);assert.equal(list.data.sessions[0].hash,undefined);
+  assert.equal((await request('/v1/me/sessions/'+list.data.sessions[0].id,{method:'DELETE',token:a.data.token})).status,200);
+  assert.equal((await request('/v1/me',{token:a.data.token})).status,401);
+});
+test('account page supports recovery without exposing an outbox; cross-origin writes fail',async t=>{
+  const {request}=await setup(t);
+  const page=await request('/account');assert.equal(page.status,200);assert.match(Buffer.from(page.data).toString(),/Reset password/);
+  assert.equal((await request('/mail-outbox')).status,404);
+  assert.equal((await request('/v1/auth/login',{method:'POST',headers:{Origin:'https://evil.example'},body:{username:'account_user',password}})).status,403);
+});
+test('recovery responses stay generic on per-recipient delivery failure and unavailable mail is explicit',async t=>{
+  let broken=false;
+  const {request}=await setup(t,{mail:{available:true,send:async()=>{if(broken)throw new Error('synthetic SMTP failure');}}});
+  await register(request);broken=true;
+  const known=await request('/v1/auth/recovery',{method:'POST',body:{email:'author@example.test'}});
+  const unknown=await request('/v1/auth/recovery',{method:'POST',body:{email:'unknown@example.test'}});
+  assert.equal(known.status,202);assert.deepEqual(known.data,unknown.data);
+  const unavailable=await setup(t,{mail:{available:false,send:async()=>{throw new Error('not configured');}}});
+  assert.equal((await register(unavailable.request)).status,503);
+});
+test('operator bootstrap is single-use, requires verified MFA, and disables the legacy token',async t=>{
+  const {bootstrap}=require('../scripts/bootstrap-api.cjs');const {request,db}=await setup(t);
+  const a=await register(request);assert.throws(()=>bootstrap(db,'account_user'),/verify/);
+  db.prepare('UPDATE users SET emailVerified=1 WHERE id=?').run(a.data.user.id);
+  const begin=await request('/v1/me/mfa/setup',{method:'POST',token:a.data.token,body:{password}});
+  const confirm=await request('/v1/me/mfa/confirm',{method:'POST',token:a.data.token,body:{code:await require('otplib').generate({secret:begin.data.secret})}});assert.equal(confirm.status,200);
+  bootstrap(db,'account_user');assert.throws(()=>bootstrap(db,'account_user'),/already/);
+  assert.equal((await request('/v1/admin/reviews',{token:admin})).status,401);
+  assert.equal((await request('/v1/me',{token:a.data.token})).status,401);
+});
+test('MFA codes cannot be replayed and account moderators can also author projects',async t=>{
+  let now=Date.now();const {request,db}=await setup(t,{now:()=>now});const a=await register(request);
+  const begin=await request('/v1/me/mfa/setup',{method:'POST',token:a.data.token,body:{password}});
+  const otp=require('otplib');
+  await request('/v1/me/mfa/confirm',{method:'POST',token:a.data.token,body:{code:await otp.generate({secret:begin.data.secret,epoch:Math.floor(now/1000)})}});
+  now+=31000;const code=await otp.generate({secret:begin.data.secret,epoch:Math.floor(now/1000)});
+  const login=await request('/v1/auth/login',{method:'POST',body:{username:'account_user',password,code}});assert.equal(login.status,200);
+  assert.equal((await request('/v1/auth/login',{method:'POST',body:{username:'account_user',password,code}})).status,401);
+  db.prepare("UPDATE users SET roles='[\"moderator\"]' WHERE id=?").run(a.data.user.id);
+  const p=await request('/v1/projects',{method:'POST',token:login.data.token,body:{slug:'moderator-mod',title:'Mod',description:'My project',license:'MIT'}});assert.equal(p.status,201);
+});

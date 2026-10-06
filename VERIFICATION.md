@@ -61,3 +61,154 @@ The Windows portable `Petal 0.1.2.exe` was rebuilt successfully and passed the
 same four UI checks with fresh isolated data in
 `artifacts/smoke-english-portable`, including a real Sodium download. The
 portable process exited with code 0.
+
+## Moderated Petal API preview (0.2.0)
+
+On October 5, 2026, the 17 preview regression tests passed. They exercise
+account ownership/logout, private submissions, approval and withdrawal,
+archive/upload rejection, dependency installation and exact configured download
+origin restrictions. This is local preview evidence, not public hosting validation.
+
+The Windows portable build completed successfully. Source, unpacked and portable
+application smoke runs each passed four checks: IPC profile creation, an actual
+Sodium installation, persistent settings with encryption, and unknown IPC rejection.
+The capture environment required `--disable-gpu` after an offscreen rendering error;
+this does not establish that every computer needs that flag. README screenshots
+were captured from the actual English preview using isolated artifact data.
+
+Public SMTP delivery, malware scanning and Docker/Bloom deployment
+are not yet verified. The server is a single-process local preview with moderated
+mod hosting; the full platform specification is a separate implementation effort.
+
+## Official versions and loader adapters
+
+The live Mojang manifest returned 917 validated version entries across release,
+snapshot, old_beta and old_alpha categories. The catalog is dynamic; this count
+is evidence from this check, not a fixed supported-version limit.
+
+Real isolated installations and complete launch-argument generation passed for:
+Vanilla 1.21.1, Vanilla 24w14a, Fabric 0.19.5, Forge 52.1.16,
+NeoForge 21.1.255 and Quilt 0.30.1 (all modded cases on Minecraft 1.21.1).
+These checks installed games, libraries and assets; they did not sign in or start
+an owned Minecraft session. Historical versions are discoverable; their full
+runtime behavior has not been exhaustively verified.
+
+NeoForge selection verifies published neoform Minecraft dependencies and exposes
+the latest 30 matching builds. Forge installers before Minecraft 1.6 are not
+offered. Loader metadata failure is visible in the profile dialog.
+
+The expanded 35-test suite passed. Source Electron smoke passed six checks,
+including snapshot selection and invalid loader IPC rejection. Delayed obsolete
+loader results are covered by race regression tests. The creator API accepts
+official snapshot IDs and Quilt descriptors. CurseForge edge CDN requests attach
+the key only to the exact HTTPS edge host, with redirects refused; an authorized
+CurseForge end-to-end download still requires a real approved API key.
+
+## Public web platform
+
+The 39-test suite passed after adopting transactional migrations and public
+discovery/project/author pages. Tests verify preview data preservation, migration
+rollback, unpublished content privacy, escaped script payloads and static-file
+allowlisting. The public website was inspected through the actual browser at
+390px and 1440px widths, with no horizontal document overflow. Empty-result
+search and separate creator dashboard entry points were verified. Screenshots
+show the real empty local catalog, not seeded production records.
+
+## Recoverable accounts checkpoint
+
+The full suite passed 47 tests on the account checkpoint, including legacy scrypt login,
+cookie/CSRF enforcement, reset and verification expiry/replay, session revocation,
+current-role checks, public MFA, authenticator replay prevention and one-time bootstrap.
+CUA verified synthetic-account login, email confirmation, logout and recovery request
+on a separate loopback instance at port 4319. Password reset was exercised by HTTP
+tests rather than changing a user credential through browser automation. Real SMTP
+delivery remains unverified.
+
+## Moderated publication checkpoint
+
+52 full tests passed. Project revisions retain approved content through pending and
+rejected changes; stale and repeated decisions are rejected. Tests cover accepted
+teams, owner-only transfers, private notes/reports, image conversion/visibility and
+withdrawn downloads with preserved bytes. CUA verified an isolated author submitting
+a changed title, the old public title before approval and the new title after a
+real local review request. Synthetic project captures remain in ignored artifacts.
+
+## Durable storage checkpoint
+
+59 tests passed with --test-concurrency=1 after the PC exhausted virtual memory during
+a parallel run. Coverage includes durable author/global reservations and concurrency,
+unsafe archive paths, crash orphan reconciliation, ENOSPC cancellation, seven-day
+withdrawal retention and pinned published references. A synthetic ClamAV socket
+verified INSTREAM framing and detection; public scanner failure stayed private,
+then retry and review succeeded. A real scanner daemon remains unverified.
+
+## API contract checkpoint
+
+63 full tests passed, including scoped-token expiry/revocation/escalation denial,
+cursor bounds and schema validation of representative account, project, release,
+page and error responses with Ajv. OpenAPI 3.1 lint completed without warnings via
+pnpm dlx --package=@redocly/cli redocly lint api/openapi.yaml. Existing API tests
+again downloaded an approved local fixture through the actual launcher catalog
+and verified its SHA-512. No approved CurseForge key was available for a real
+CurseForge file download.
+
+## Backup and recovery checkpoint
+
+A populated live SQLite snapshot was restored into a separate temporary directory.
+Normal scrypt login and encrypted-secret TOTP login succeeded. Published download
+bytes and SHA-512 headers were identical; pending downloads stayed private.
+Populated targets and altered backup bytes were refused. Readiness returned 503
+for blocked storage and a database outage without private details.
+
+## Final platform delivery — October 6, 2026
+
+Petal's full sequential unit/integration suite passed **79/79**, Bloom's unit
+suite passed **61/61**, and OpenAPI 3.1 lint passed without warnings. These test
+counts do not include the pending Docker/PostgreSQL host acceptance runs.
+
+The fresh-context review found four important defects. Each was reproduced with
+a failing regression before the one final fix pass: unrelated manual mod files
+could be replaced by a pack target; the Docker image omitted loader/retry runtime
+modules; interrupted Bloom cleanup could delete the retained rollback image; and
+NeoForge 1.21 metadata matched the wrong prefix. All four regressions now pass.
+The account navigation link was corrected, and account recovery now invalidates
+scoped API tokens as well as sessions. Its credential test first failed with a
+still-valid token, then passed with an unauthorized response.
+
+Storage, tokens, backups, content types and community features are implemented.
+Pack validation covers ZIP paths, entry/expanded-size bounds, selected-world
+installation, optional references, provider permission failure and handled-error
+rollback. Resource packs, shaders, datapacks and Petal reference-based modpacks
+are supported; native mrpack/CurseForge pack conversion and bundled overrides
+remain excluded. Follow/collection/notification tests cover ownership, bounded
+pagination, withdrawn filtering and approval-only notices. Browser checks used
+an isolated synthetic account to follow a project and save it to a private
+collection. That fixture was never presented as production catalog content.
+
+The source, freshly unpacked Windows app and freshly built portable executable
+**each passed all six UI smoke checks**, including a real Sodium installation,
+snapshot category selection, secure-storage availability and IPC rejection.
+The portable process exited 0. Tests used isolated `artifacts/smoke-complete-*`
+data, not the user's normal profiles. Captures in docs/media show the actual
+English application and the real empty local catalog, using Minecraft imagery.
+The website's content filter and navigation were checked at 1440 and 390 pixels;
+document widths 1425 and 375 had no horizontal overflow.
+
+The portable build succeeded with Node heap limited to 512 MB and archive
+compression disabled after verified allocation failures on this 8 GB Windows
+machine. The unsigned executable is 416,693,996 bytes. This build workaround
+changes artifact size, not application behavior. The build still uses Electron's
+default executable icon; the product UI preserves Petal's violet flower.
+
+**External acceptance pending:** actual Linux Docker build/runtime and volume
+ownership, real PostgreSQL migrations, actual Petal deployment through Bloom,
+HTTPS/proxy behavior, real SMTP delivery and ClamAV connectivity, approved
+CurseForge-key downloads, Microsoft sign-in and an owned Minecraft session.
+Container dependency closure and Bloom lifecycle policy are covered by static
+and unit regressions; they do not establish successful deployment. The API is
+single-process per data directory. Launcher crash recovery during file replacement
+is not implemented. Historical launch behavior has not been exhaustively verified.
+
+See [the delivery report](docs/DELIVERY.md) for scope, decision costs and the
+remaining host acceptance steps. Build outputs, synthetic accounts, keys,
+server data and detailed scratch logs remain ignored.

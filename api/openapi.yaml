@@ -1,0 +1,5237 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Petal Platform API",
+    "version": "1.0.0",
+    "description": "Minecraft Java publishing, public discovery and private author workflows. JSON bodies are limited to 64 KB. General requests: 300/min per direct peer; authentication: 20/15 min. Website assets and HTML pages are outside this API contract. Cookie writes require X-Petal-CSRF and same origin. Existing 24-hour preview bearer sessions remain a compatibility credential; new integrations should use scoped tokens.",
+    "contact": {
+      "name": "Petal project",
+      "url": "https://github.com/P1kaCat/Petal"
+    },
+    "license": {
+      "name": "Petal Restricted Source License",
+      "url": "https://github.com/P1kaCat/Petal/blob/main/LICENSE"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:4318",
+      "description": "Local development. Replace with your HTTPS public origin."
+    }
+  ],
+  "tags": [
+    {
+      "name": "Accounts",
+      "description": "Accounts operations"
+    },
+    {
+      "name": "Personal",
+      "description": "Personal operations"
+    },
+    {
+      "name": "Projects",
+      "description": "Projects operations"
+    },
+    {
+      "name": "Versions",
+      "description": "Versions operations"
+    },
+    {
+      "name": "Moderation",
+      "description": "Moderation operations"
+    },
+    {
+      "name": "Reports",
+      "description": "Reports operations"
+    },
+    {
+      "name": "Minecraft",
+      "description": "Minecraft operations"
+    },
+    {
+      "name": "Community",
+      "description": "Private follows, collections and approved-update notifications."
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "get__health",
+        "summary": "Liveness",
+        "description": "Liveness",
+        "security": [],
+        "tags": [
+          "Projects"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "service",
+                    "version"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/game/versions": {
+      "get": {
+        "operationId": "get__v1_game_versions",
+        "summary": "Official Minecraft catalog",
+        "description": "Complete bounded upstream manifest snapshot, including historical versions. This metadata resource is not a paginated Petal content collection.",
+        "security": [],
+        "tags": [
+          "Versions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "versions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "enum": [
+                              "release",
+                              "snapshot",
+                              "old_beta",
+                              "old_alpha"
+                            ]
+                          },
+                          "releaseTime": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "releaseTime",
+                          "url"
+                        ]
+                      }
+                    },
+                    "stale": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "versions",
+                    "stale"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/auth/capabilities": {
+      "get": {
+        "operationId": "get__v1_auth_capabilities",
+        "summary": "Local operator capability",
+        "description": "Local operator capability",
+        "security": [],
+        "tags": [
+          "Accounts"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "localOperator": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "localOperator"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/auth/register": {
+      "post": {
+        "operationId": "post__v1_auth_register",
+        "summary": "Account register",
+        "description": "Cookie mode omits the bearer token. Public registration requires email. MFA-enabled login also requires an authenticator or recovery code.",
+        "security": [],
+        "tags": [
+          "Accounts"
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Register"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "operationId": "post__v1_auth_login",
+        "summary": "Account login",
+        "description": "Cookie mode omits the bearer token. Public registration requires email. MFA-enabled login also requires an authenticator or recovery code.",
+        "security": [],
+        "tags": [
+          "Accounts"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "post__v1_auth_logout",
+        "summary": "Revoke current session",
+        "description": "Revoke current session",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Accounts"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ]
+      }
+    },
+    "/v1/auth/recovery": {
+      "post": {
+        "operationId": "post__v1_auth_recovery",
+        "summary": "Request password recovery",
+        "description": "Request password recovery",
+        "security": [],
+        "tags": [
+          "Accounts"
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/reset": {
+      "post": {
+        "operationId": "post__v1_auth_reset",
+        "summary": "Redeem single-use recovery link",
+        "description": "Redeem single-use recovery link",
+        "security": [],
+        "tags": [
+          "Accounts"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "token",
+                  "password"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/verify": {
+      "post": {
+        "operationId": "post__v1_auth_verify",
+        "summary": "Verify email",
+        "description": "Verify email",
+        "security": [],
+        "tags": [
+          "Accounts"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "operationId": "get__v1_me",
+        "summary": "Current account",
+        "description": "Current account",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/Account"
+                    },
+                    "csrf": {
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "user",
+                    "sessionId"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/sessions": {
+      "get": {
+        "operationId": "get__v1_me_sessions",
+        "summary": "List active sessions",
+        "description": "List active sessions",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/sessions/{sessionId}": {
+      "delete": {
+        "operationId": "delete__v1_me_sessions_sessionId_",
+        "summary": "Revoke owned session",
+        "description": "Revoke owned session",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/email": {
+      "post": {
+        "operationId": "post__v1_me_email",
+        "summary": "Add or reverify email",
+        "description": "Add or reverify email",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ]
+      }
+    },
+    "/v1/me/mfa/setup": {
+      "post": {
+        "operationId": "post__v1_me_mfa_setup",
+        "summary": "Begin authenticator enrollment",
+        "description": "Begin authenticator enrollment",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "secret": {
+                      "type": "string"
+                    },
+                    "uri": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secret",
+                    "uri"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ]
+      }
+    },
+    "/v1/me/mfa/confirm": {
+      "post": {
+        "operationId": "post__v1_me_mfa_confirm",
+        "summary": "Confirm authenticator enrollment",
+        "description": "Confirm authenticator enrollment",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "recoveryCodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "recoveryCodes"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$"
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ]
+      }
+    },
+    "/v1/me/tokens": {
+      "get": {
+        "operationId": "get__v1_me_tokens",
+        "summary": "List token metadata",
+        "description": "List token metadata",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post__v1_me_tokens",
+        "summary": "Create scoped API token",
+        "description": "Plaintext token is shown once. Scopes cannot grant moderation or account-security access.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ]
+      }
+    },
+    "/v1/me/tokens/{tokenId}": {
+      "delete": {
+        "operationId": "delete__v1_me_tokens_tokenId_",
+        "summary": "Revoke owned API token",
+        "description": "Revoke owned API token",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/projects": {
+      "get": {
+        "operationId": "get__v1_me_projects",
+        "summary": "Owned and accepted team projects",
+        "description": "Owned and accepted team projects",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/invitations": {
+      "get": {
+        "operationId": "get__v1_me_invitations",
+        "summary": "Pending team invitations",
+        "description": "Pending team invitations",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Personal"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/projects": {
+      "post": {
+        "operationId": "post__v1_projects",
+        "summary": "Create author project",
+        "description": "Create author project",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ]
+      }
+    },
+    "/v1/search": {
+      "get": {
+        "operationId": "get__v1_search",
+        "summary": "Search approved projects",
+        "description": "Search approved projects",
+        "security": [],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "loader",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "fabric",
+                "quilt",
+                "forge",
+                "neoforge"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "newest",
+                "downloads"
+              ],
+              "default": "newest"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "mod",
+                "resourcepack",
+                "shader",
+                "datapack",
+                "modpack"
+              ]
+            },
+            "description": "Filter by hosted content type."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Search"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}": {
+      "get": {
+        "operationId": "get__v1_projects_projectId_",
+        "summary": "Approved project or authorized team view",
+        "description": "Approved project or authorized team view",
+        "security": [
+          {},
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/versions": {
+      "get": {
+        "operationId": "get__v1_projects_projectId_versions",
+        "summary": "List visible compatible releases",
+        "description": "Preserves the versions alias used by launcher clients. Pending entries and review notes require authorized team membership.",
+        "security": [
+          {},
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Versions"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "loader",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post__v1_projects_projectId_versions",
+        "summary": "Create private release draft",
+        "description": "Create private release draft",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Versions"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/revisions": {
+      "get": {
+        "operationId": "get__v1_projects_projectId_revisions",
+        "summary": "Private revision history",
+        "description": "Private revision history",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post__v1_projects_projectId_revisions",
+        "summary": "Propose moderated project changes",
+        "description": "Propose moderated project changes",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Revision"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/revisions/{revisionId}/withdraw": {
+      "post": {
+        "operationId": "post__v1_projects_projectId_revisions_revisionId_withdraw",
+        "summary": "Withdraw pending revision",
+        "description": "Withdraw pending revision",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "revisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/members": {
+      "get": {
+        "operationId": "get__v1_projects_projectId_members",
+        "summary": "List private project team",
+        "description": "List private project team",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post__v1_projects_projectId_members",
+        "summary": "Owner invites or changes member role",
+        "description": "Owner invites or changes member role",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "role": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "userId",
+                    "role"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "enum": [
+                      "maintainer",
+                      "contributor"
+                    ]
+                  }
+                },
+                "required": [
+                  "username",
+                  "role"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete__v1_projects_projectId_members",
+        "summary": "Owner removes a member",
+        "description": "Owner removes a member",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "userId"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/members/accept": {
+      "post": {
+        "operationId": "post__v1_projects_projectId_members_accept",
+        "summary": "Accept an owned invitation",
+        "description": "Accept an owned invitation",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/transfer": {
+      "post": {
+        "operationId": "post__v1_projects_projectId_transfer",
+        "summary": "Owner transfers to accepted member",
+        "description": "Owner transfers to accepted member",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ownerId": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "ownerId"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "userId"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/images": {
+      "post": {
+        "operationId": "post__v1_projects_projectId_images",
+        "summary": "Upload private raster asset",
+        "description": "Also accepts image/jpeg and image/webp. Requires Content-Length, at most 5 MB and 16 million decoded pixels. Output is static WebP.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Content-Length",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5242880
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "url"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/versions/{versionId}": {
+      "get": {
+        "operationId": "get__v1_versions_versionId_",
+        "summary": "Visible release metadata",
+        "description": "Visible release metadata",
+        "security": [
+          {},
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Versions"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/versions/{versionId}/file": {
+      "put": {
+        "operationId": "put__v1_versions_versionId_file",
+        "summary": "Upload private release bytes",
+        "description": "Also accepts application/octet-stream. SHA-512 and archive validation occur before pending status. Four concurrent uploads, 256 MB per author, 2 GB global defaults.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Versions"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Content-Length",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 67108864
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/java-archive": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "application/zip": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/versions/{versionId}/download": {
+      "get": {
+        "operationId": "get__v1_versions_versionId_download",
+        "summary": "Download visible immutable release",
+        "description": "Download visible immutable release",
+        "security": [
+          {},
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Versions"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/java-archive": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/versions/{versionId}/withdraw": {
+      "post": {
+        "operationId": "post__v1_versions_versionId_withdraw",
+        "summary": "Withdraw submitted release",
+        "description": "Withdraw submitted release",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Versions"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/admin/reviews": {
+      "get": {
+        "operationId": "get__v1_admin_reviews",
+        "summary": "Moderator release queue",
+        "description": "Moderator release queue",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Moderation"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "pending",
+                "published",
+                "rejected"
+              ],
+              "default": "pending"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/admin/versions/{versionId}/review": {
+      "post": {
+        "operationId": "post__v1_admin_versions_versionId_review",
+        "summary": "Moderator approves or rejects release",
+        "description": "Reject requires a reason. Public approval requires scanning or an explicitly configured manual policy. Private review notes are omitted from public responses.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Moderation"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "approve",
+                      "reject"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/versions/{versionId}/scan": {
+      "post": {
+        "operationId": "post__v1_admin_versions_versionId_scan",
+        "summary": "Retry scanner on pending release",
+        "description": "Retry scanner on pending release",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Moderation"
+        ],
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scanStatus": {
+                      "const": "clean"
+                    }
+                  },
+                  "required": [
+                    "scanStatus"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/admin/revisions": {
+      "get": {
+        "operationId": "get__v1_admin_revisions",
+        "summary": "Moderator pending revision queue",
+        "description": "Moderator pending revision queue",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Moderation"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/admin/revisions/{revisionId}/review": {
+      "post": {
+        "operationId": "post__v1_admin_revisions_revisionId_review",
+        "summary": "Decide pending project revision",
+        "description": "Decide pending project revision",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Moderation"
+        ],
+        "parameters": [
+          {
+            "name": "revisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "revisionId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "action": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "actorId": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revisionId",
+                    "action",
+                    "reason",
+                    "actorId",
+                    "createdAt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "approve",
+                      "reject",
+                      "withdraw"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "action",
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reports": {
+      "post": {
+        "operationId": "post__v1_reports",
+        "summary": "Report published project privately",
+        "description": "Report published project privately",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Reports"
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "const": "open"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "projectId",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ]
+      }
+    },
+    "/v1/reports/{reportId}": {
+      "get": {
+        "operationId": "get__v1_reports_reportId_",
+        "summary": "Own private report",
+        "description": "Own private report",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/admin/reports": {
+      "get": {
+        "operationId": "get__v1_admin_reports",
+        "summary": "Moderator private report queue",
+        "description": "Moderator private report queue",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Moderation"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Maximum number of records."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/admin/reports/{reportId}": {
+      "post": {
+        "operationId": "post__v1_admin_reports_reportId_",
+        "summary": "Resolve private report",
+        "description": "Resolve private report",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          }
+        ],
+        "tags": [
+          "Moderation"
+        ],
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Petal-CSRF",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Required for cookie-authenticated writes. Read it from GET /v1/me."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "resolution": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "resolution"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/{imageId}": {
+      "get": {
+        "operationId": "get__media_imageId_",
+        "summary": "Approved or authorized private raster image",
+        "description": "Approved or authorized private raster image",
+        "security": [
+          {},
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "name": "imageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "headers": {
+              "X-Request-ID": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Server-generated request identifier."
+              }
+            },
+            "content": {
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "get_ready",
+        "summary": "Readiness with safe status labels",
+        "description": "Checks database and writable storage; public mode also checks mail and review-policy configuration.",
+        "security": [],
+        "tags": [
+          "Projects"
+        ],
+        "responses": {
+          "200": {
+            "description": "Ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "checks"
+                  ],
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "ready",
+                        "unavailable"
+                      ]
+                    },
+                    "checks": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "description": "Unavailable, without private diagnostics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "checks"
+                  ],
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "ready",
+                        "unavailable"
+                      ]
+                    },
+                    "checks": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/projects/{projectId}/follow": {
+      "get": {
+        "operationId": "get_community__v1_projects__projectId__follow",
+        "summary": "Check follow state",
+        "description": "Check follow state Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_community__v1_projects__projectId__follow",
+        "summary": "Follow a published project",
+        "description": "Follow a published project Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_community__v1_projects__projectId__follow",
+        "summary": "Unfollow a project",
+        "description": "Unfollow a project Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/follows": {
+      "get": {
+        "operationId": "get_community__v1_me_follows",
+        "summary": "List followed published projects",
+        "description": "List followed published projects Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/collections": {
+      "get": {
+        "operationId": "get_community__v1_me_collections",
+        "summary": "List private collections",
+        "description": "List private collections Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_community__v1_me_collections",
+        "summary": "Create a private collection",
+        "description": "Create a private collection Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/collections/{collectionId}": {
+      "get": {
+        "operationId": "get_community__v1_me_collections__collectionId_",
+        "summary": "Read private collection items",
+        "description": "Read private collection items Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_community__v1_me_collections__collectionId_",
+        "summary": "Delete own collection",
+        "description": "Delete own collection Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/collections/{collectionId}/items/{projectId}": {
+      "post": {
+        "operationId": "post_community__v1_me_collections__collectionId__items__projectId_",
+        "summary": "Add a published project to own collection",
+        "description": "Add a published project to own collection Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_community__v1_me_collections__collectionId__items__projectId_",
+        "summary": "Remove a project from own collection",
+        "description": "Remove a project from own collection Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/notifications": {
+      "get": {
+        "operationId": "get_community__v1_me_notifications",
+        "summary": "List own in-app notifications",
+        "description": "List own in-app notifications Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Opaque nextCursor from the previous page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/notifications/{notificationId}/read": {
+      "post": {
+        "operationId": "post_community__v1_me_notifications__notificationId__read",
+        "summary": "Mark own notification read",
+        "description": "Mark own notification read Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "notificationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/v1/me/notifications/preferences": {
+      "get": {
+        "operationId": "get_community__v1_me_notifications_preferences",
+        "summary": "Read notification preference",
+        "description": "Read notification preference Account-private. Requires community:read for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_community__v1_me_notifications_preferences",
+        "summary": "Set in-app notification preference",
+        "description": "Set in-app notification preference Account-private. Requires community:write for API tokens. Cookie writes require X-Petal-CSRF.",
+        "tags": [
+          "Community"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "sessionBearer": []
+          },
+          {
+            "scopedBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "releaseUpdates"
+                ],
+                "properties": {
+                  "releaseUpdates": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "petal_session",
+        "description": "HTTP-only website session. Add X-Petal-CSRF for writes."
+      },
+      "sessionBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "24-hour account session; MFA is required for public privileged access. Local operator token is development-only until bootstrap."
+      },
+      "scopedBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "ptl_ opaque token",
+        "description": "Revocable, at most 90 days. Project routes require project:read/write; account reads require account:read; reports/community require community:read/write. Cannot manage tokens, account security or moderation."
+      }
+    },
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "about:blank"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code",
+          "requestId",
+          "error"
+        ]
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "author",
+                "moderator",
+                "admin"
+              ]
+            }
+          },
+          "mfaEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "emailVerified",
+          "roles",
+          "mfaEnabled"
+        ]
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "expires": {
+            "type": "integer"
+          },
+          "user": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "token": {
+            "type": "string"
+          },
+          "csrf": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expires",
+          "user"
+        ]
+      },
+      "File": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{128}$"
+          },
+          "algorithm": {
+            "const": "sha512"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "size",
+          "hash",
+          "algorithm",
+          "url"
+        ]
+      },
+      "Dependency": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "const": "petal"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "source",
+          "id"
+        ]
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "downloads": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string"
+          },
+          "revisionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "iconUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gallery": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "enum": [
+              "mod",
+              "resourcepack",
+              "shader",
+              "datapack",
+              "modpack"
+            ],
+            "default": "mod"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "description",
+          "license",
+          "sourceUrl",
+          "author",
+          "downloads",
+          "url",
+          "revisionId",
+          "iconUrl",
+          "gallery"
+        ]
+      },
+      "Version": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "gameVersions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "loaders": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "fabric",
+                "quilt",
+                "forge",
+                "neoforge"
+              ]
+            }
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Dependency"
+            }
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "pending",
+              "published",
+              "rejected",
+              "withdrawn"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rightsConfirmed": {
+            "type": "boolean"
+          },
+          "downloads": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/File"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reviewNote": {
+            "type": "string"
+          },
+          "scanStatus": {
+            "enum": [
+              "unscanned",
+              "manual",
+              "clean",
+              "infected",
+              "failed"
+            ]
+          },
+          "type": {
+            "enum": [
+              "mod",
+              "resourcepack",
+              "shader",
+              "datapack",
+              "modpack"
+            ],
+            "default": "mod"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "name",
+          "gameVersions",
+          "loaders",
+          "dependencies",
+          "status",
+          "createdAt",
+          "rightsConfirmed",
+          "downloads",
+          "file"
+        ]
+      },
+      "Revision": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn"
+            ]
+          },
+          "content": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "license": {
+                "type": "string"
+              },
+              "sourceUrl": {
+                "type": "string"
+              },
+              "iconId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "gallery": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "required": [
+              "title",
+              "description",
+              "license",
+              "sourceUrl",
+              "iconId",
+              "gallery"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "baseRevisionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "action",
+                "reason",
+                "createdAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "status",
+          "content",
+          "createdAt",
+          "baseRevisionId",
+          "decisions"
+        ]
+      },
+      "Page": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {}
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "limit",
+          "nextCursor"
+        ]
+      },
+      "Search": {
+        "type": "object",
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Project"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projects",
+          "total",
+          "offset",
+          "hasMore"
+        ]
+      },
+      "OK": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "Register": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{3,40}$"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 256
+          },
+          "sessionType": {
+            "enum": [
+              "cookie",
+              "bearer"
+            ],
+            "default": "bearer"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ]
+      },
+      "Login": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "identifier": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 256
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "sessionType": {
+            "enum": [
+              "cookie",
+              "bearer"
+            ],
+            "default": "bearer"
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "ProjectInput": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "license": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "sourceUrl": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "description",
+          "license"
+        ]
+      },
+      "RevisionInput": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "license": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "sourceUrl": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "iconId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gallery": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": []
+      },
+      "VersionInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "filename": {
+            "type": "string"
+          },
+          "gameVersions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 30,
+            "items": {
+              "type": "string"
+            }
+          },
+          "loaders": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "enum": [
+                "fabric",
+                "quilt",
+                "forge",
+                "neoforge"
+              ]
+            }
+          },
+          "rightsConfirmed": {
+            "const": true
+          },
+          "dependencies": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "versionId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "id"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "filename",
+          "gameVersions",
+          "loaders",
+          "rightsConfirmed"
+        ]
+      },
+      "TokenInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "scopes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "items": {
+              "enum": [
+                "project:read",
+                "project:write",
+                "account:read",
+                "community:read",
+                "community:write"
+              ]
+            }
+          },
+          "expiresAt": {
+            "type": "integer",
+            "description": "Unix milliseconds, in the future and within 90 days."
+          }
+        },
+        "required": [
+          "name",
+          "scopes",
+          "expiresAt"
+        ]
+      },
+      "Token": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "integer"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scopes",
+          "expiresAt"
+        ]
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "Safe problem-details response. error mirrors detail for preview clients.",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Use this identifier when contacting the operator."
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "example": {
+              "type": "about:blank",
+              "title": "Forbidden",
+              "status": 403,
+              "detail": "API token scope does not permit this action.",
+              "instance": "/v1/projects",
+              "code": "permission_denied",
+              "requestId": "00000000-0000-4000-8000-000000000000",
+              "error": "API token scope does not permit this action."
+            }
+          }
+        }
+      }
+    }
+  }
+}
