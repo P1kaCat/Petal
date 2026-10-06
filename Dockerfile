@@ -5,6 +5,8 @@ COPY deploy/runtime/package.json deploy/runtime/pnpm-lock.yaml ./
 RUN corepack prepare pnpm@11.25.0 --activate && pnpm install --prod --frozen-lockfile --ignore-scripts
 COPY api ./api
 COPY src/store.cjs src/version-id.cjs src/minecraft-metadata.cjs ./src/
+COPY src/loaders ./src/loaders
+COPY src/retry.cjs ./src/
 COPY src/content-format.cjs src/archive-validation.cjs ./src/
 COPY src/assets/minecraft-cherry-panorama.png ./src/assets/
 COPY scripts/backup-api.cjs scripts/restore-api.cjs scripts/backup-common.cjs scripts/bootstrap-api.cjs ./scripts/

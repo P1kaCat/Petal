@@ -159,3 +159,56 @@ Normal scrypt login and encrypted-secret TOTP login succeeded. Published downloa
 bytes and SHA-512 headers were identical; pending downloads stayed private.
 Populated targets and altered backup bytes were refused. Readiness returned 503
 for blocked storage and a database outage without private details.
+
+## Final platform delivery — October 6, 2026
+
+Petal's full sequential unit/integration suite passed **79/79**, Bloom's unit
+suite passed **61/61**, and OpenAPI 3.1 lint passed without warnings. These test
+counts do not include the pending Docker/PostgreSQL host acceptance runs.
+
+The fresh-context review found four important defects. Each was reproduced with
+a failing regression before the one final fix pass: unrelated manual mod files
+could be replaced by a pack target; the Docker image omitted loader/retry runtime
+modules; interrupted Bloom cleanup could delete the retained rollback image; and
+NeoForge 1.21 metadata matched the wrong prefix. All four regressions now pass.
+The account navigation link was corrected, and account recovery now invalidates
+scoped API tokens as well as sessions. Its credential test first failed with a
+still-valid token, then passed with an unauthorized response.
+
+Storage, tokens, backups, content types and community features are implemented.
+Pack validation covers ZIP paths, entry/expanded-size bounds, selected-world
+installation, optional references, provider permission failure and handled-error
+rollback. Resource packs, shaders, datapacks and Petal reference-based modpacks
+are supported; native mrpack/CurseForge pack conversion and bundled overrides
+remain excluded. Follow/collection/notification tests cover ownership, bounded
+pagination, withdrawn filtering and approval-only notices. Browser checks used
+an isolated synthetic account to follow a project and save it to a private
+collection. That fixture was never presented as production catalog content.
+
+The source, freshly unpacked Windows app and freshly built portable executable
+**each passed all six UI smoke checks**, including a real Sodium installation,
+snapshot category selection, secure-storage availability and IPC rejection.
+The portable process exited 0. Tests used isolated `artifacts/smoke-complete-*`
+data, not the user's normal profiles. Captures in docs/media show the actual
+English application and the real empty local catalog, using Minecraft imagery.
+The website's content filter and navigation were checked at 1440 and 390 pixels;
+document widths 1425 and 375 had no horizontal overflow.
+
+The portable build succeeded with Node heap limited to 512 MB and archive
+compression disabled after verified allocation failures on this 8 GB Windows
+machine. The unsigned executable is 416,693,996 bytes. This build workaround
+changes artifact size, not application behavior. The build still uses Electron's
+default executable icon; the product UI preserves Petal's violet flower.
+
+**External acceptance pending:** actual Linux Docker build/runtime and volume
+ownership, real PostgreSQL migrations, actual Petal deployment through Bloom,
+HTTPS/proxy behavior, real SMTP delivery and ClamAV connectivity, approved
+CurseForge-key downloads, Microsoft sign-in and an owned Minecraft session.
+Container dependency closure and Bloom lifecycle policy are covered by static
+and unit regressions; they do not establish successful deployment. The API is
+single-process per data directory. Launcher crash recovery during file replacement
+is not implemented. Historical launch behavior has not been exhaustively verified.
+
+See [the delivery report](docs/DELIVERY.md) for scope, decision costs and the
+remaining host acceptance steps. Build outputs, synthetic accounts, keys,
+server data and detailed scratch logs remain ignored.

@@ -51,3 +51,13 @@ test('permission-blocked required pack files preserve existing installs while op
   assert.equal(await fs.readFile(path.join(root,'resourcepacks','prior.zip'),'utf8'),'prior');assert.equal(profile.content.length,0);
   optional=true;calls=0;assert.equal((await installContent(store,catalog,'profile','petal','pack','modpack',{},()=>{},fetcher)).count,0);assert.equal(calls,0);
 });
+test('a pack update cannot overwrite an unrelated manual JAR through its target name',async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'petal-manual-collision-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));await fs.mkdir(path.join(root,'mods'));
+  await fs.writeFile(path.join(root,'mods','a-old.jar'),'old');await fs.writeFile(path.join(root,'mods','manual.jar'),'manual');
+  const bytes=jar(),hash=createHash('sha512').update(bytes).digest('hex'),mod={source:'petal',id:'mod-a',versionId:'old',file:{name:'a-old.jar'},dependencies:[]},profile={version:'1.21.1',loader:'fabric',mods:[mod],content:[]};
+  const manifest={formatVersion:1,name:'Test',gameVersion:'1.21.1',loader:'fabric',files:[{source:'petal',projectId:'mod-a',versionId:'new',type:'mod',target:'mods/manual.jar',hash,algorithm:'sha512',optional:false}]};const pack=jar('petal.index.json',JSON.stringify(manifest));
+  const catalog={petalUrl:'http://127.0.0.1:4318',resolveContent:async(s,id)=>({source:s,id,versionId:'new',title:id,file:{name:id==='pack'?'pack.zip':'a-new.jar',url:'http://127.0.0.1:4318/v1/versions/'+(id==='pack'?'11111111-1111-4111-8111-111111111111':'22222222-2222-4222-8222-222222222222')+'/download',hash:createHash('sha512').update(id==='pack'?pack:bytes).digest('hex'),algorithm:'sha512'},dependencies:[],incompatible:[]})};
+  const store={profile:()=>profile,directory:()=>root,save:async()=>{}};
+  await assert.rejects(()=>installContent(store,catalog,'p','petal','pack','modpack',{},()=>{},async url=>new Response(String(url).includes('11111111')?pack:bytes)),/belongs|exists|collision/);
+  assert.equal(await fs.readFile(path.join(root,'mods','manual.jar'),'utf8'),'manual');assert.equal(await fs.readFile(path.join(root,'mods','a-old.jar'),'utf8'),'old');
+});

@@ -9,7 +9,7 @@ storage; the previous preview portal credential is removed on load.
 
 For API clients, register/login can still return a hashed-on-disk bearer session.
 Pass `sessionType: "cookie"` for website sessions; these responses omit the bearer
-token. Scoped API tokens arrive in the next API-contract task. Existing preview
+token. Scoped API tokens can be created and revoked on the account page. Existing preview
 bearer sessions retain their expiry and become individually revocable during
 migration. Existing salted scrypt passwords retain their original parameters.
 
@@ -21,7 +21,8 @@ after confirming its password. Changing an existing address currently requires
 operator support. Email verification is mandatory before public project creation
 and release submission. Links use random tokens whose SHA-256 digests are stored
 in the database: verification lasts 24 hours, password recovery 30 minutes.
-Each link is single-use. A password reset revokes every session but preserves MFA.
+Each link is single-use. A password reset revokes every session and scoped API token,
+but preserves MFA. Integrations must issue new API tokens after account recovery.
 
 Local development writes messages into `PETAL_API_DATA_DIR/mail-outbox`. This
 directory is operator-only and has no HTTP route. Use it only on a private local

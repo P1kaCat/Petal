@@ -2,6 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { getLoader } = require('../src/loaders/index.cjs');
 const xml = values => `<metadata><versioning><versions>${values.map(v=>`<version>${v}</version>`).join('')}</versions></versioning></metadata>`;
+test('NeoForge maps a Minecraft minor release without a patch to zero',async()=>{
+  const adapter=getLoader('neoforge',{fetcher:async url=>new Response(url.endsWith('.xml')?xml(['21.0.167','21.1.10']):'<project><dependencies><dependency><artifactId>neoform</artifactId><version>1.21-20240613.152323</version></dependency></dependencies></project>')});
+  assert.deepEqual((await adapter.list('1.21')).map(v=>v.version),['21.0.167']);
+});
 const fetcher = async url => {
   if (url.includes('fabricmc.net')) return Response.json(url.endsWith('/1.21.1') ? [{loader:{version:'0.16.9',stable:true}},{loader:{version:'0.17.0-beta.1',stable:false}}] : []);
   if (url.includes('quiltmc.org')) return Response.json(url.endsWith('/1.21.1') ? [{loader:{version:'0.29.0'}},{loader:{version:'0.30.0-beta.1'}}] : []);

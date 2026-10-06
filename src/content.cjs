@@ -44,7 +44,8 @@ async function installContent(store,catalog,profileId,source,id,type,options={},
       const item=requests[i];safeContentFilename(item.targetName,item.type);item.file={...item.file,name:item.targetName};item.directory=await destination(item.type);item.target=path.join(item.directory,item.targetName);
       if(targets.has(item.target.toLowerCase()))throw Error('Content target collision.');targets.add(item.target.toLowerCase());
       const owner=item.type==='mod'?originalMods.find(m=>m.source===item.source&&m.id===item.id):original.find(m=>m.source===item.source&&m.id===item.id&&m.target===path.relative(root,item.target));
-      try{const stat=await fs.lstat(item.target);if(!owner)throw Error('Content file already exists.');if(!stat.isFile()||stat.isSymbolicLink())throw Error('Content target must be a regular file.');}catch(error){if(error.code!=='ENOENT')throw error;}
+      const ownedPath=owner?(item.type==='mod'?path.join(root,'mods',owner.file.name+(owner.enabled===false?'.disabled':'')):item.target):null;
+      try{const stat=await fs.lstat(item.target);if(!ownedPath||ownedPath.toLowerCase()!==item.target.toLowerCase())throw Error('Content file already exists and belongs to another install.');if(!stat.isFile()||stat.isSymbolicLink())throw Error('Content target must be a regular file.');}catch(error){if(error.code!=='ENOENT')throw error;}
       notify(`Downloading: ${item.title||item.targetName}`);
       const bytes=await download(item.file,fetcher,item.source==='petal'?catalog.petalUrl:'',item.source==='curseforge'?catalog.getKey?.():'',item.type);
       totalBytes+=bytes.length;if(totalBytes>1073741824)throw Error('Pack exceeds 1 GB downloaded content.');item.staged=path.join(stage,String(i));await fs.writeFile(item.staged,bytes);await validateArchive(item.staged,item.type);
@@ -52,6 +53,9 @@ async function installContent(store,catalog,profileId,source,id,type,options={},
         const stat=await fs.lstat(previous).catch(e=>{if(e.code!=='ENOENT')throw e;return null;});if(stat?.isSymbolicLink())throw Error('Content target must not be a link.');item.previous=stat?previous:null;}
     }
     for(const item of requests){
+      // Recheck after downloads: a manually added file must never be replaced.
+      const occupied=await fs.lstat(item.target).catch(error=>{if(error.code!=='ENOENT')throw error;return null;});
+      if(occupied&&(!item.previous||item.previous.toLowerCase()!==item.target.toLowerCase()||!occupied.isFile()||occupied.isSymbolicLink()))throw Error('Content target collision.');
       if(item.previous){const backup=path.join(stage,`backup-${backups.length}`);await fs.rename(item.previous,backup);backups.push({from:item.previous,to:backup});}
       await fs.rename(item.staged,item.target);written.push(item.target);
       const record={...item,enabled:true,installedAt:new Date().toISOString()};for(const key of ['directory','staged','previous','targetName'])delete record[key];record.target=path.relative(root,item.target);

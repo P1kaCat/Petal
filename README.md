@@ -80,6 +80,11 @@ prepare the game, or open an instance folder from the same screen.
 | **Minecraft + Java** | Game files and the required Java runtime downloaded from official services. |
 | **Dependency handling** | Required dependencies, declared incompatibility checks, and file checksum verification. |
 | **Mod management** | Install, enable, disable, remove, update, and manually import `.jar` files. |
+| **Packs and shaders** | Host and install resource packs, shaders, datapacks in a selected world, and reference-based Petal modpacks. |
+| **Creator accounts** | Email verification and recovery, authenticator MFA, scoped API tokens, author teams and moderated revisions. |
+| **Personal library** | Follow published projects, save private collections and receive approved-update notifications. |
+| **Hosting operations** | Persistent upload quotas, quarantine, readiness, checksummed backups and isolated restore. |
+| **Bloom integration** | Container packaging, per-project persistent volumes and protected secret references; Linux acceptance still pending. |
 | **Local credential storage** | Windows secure storage for the API key and refresh credentials; no bundled keys. |
 
 ## Start growing
@@ -124,7 +129,8 @@ Run the server locally with Node.js 24 or later:
 pnpm api
 ```
 
-Open `http://127.0.0.1:4318` for the creator portal, then set that URL under
+Open `http://127.0.0.1:4318` for the public website, `/account` for accounts and
+`/dashboard` for the creator portal, then set the server URL under
 **Settings → Petal API** in the launcher. The [API guide](api/README.md)
 documents author submission, moderation, endpoints, deployment, and preview limits.
 
@@ -135,9 +141,17 @@ flow that requires the project's own approved client ID.
 **Still to verify:** authorized CurseForge requests and downloads, Microsoft
 sign-in, and an authenticated Minecraft game session.
 
-**Not implemented yet:** Modrinth `.mrpack` and CurseForge modpack import/export,
-shader and resource-pack management, multiple accounts, and automatic recovery
-from a process crash during file replacement.
+**Not implemented yet:** native Modrinth `.mrpack` and CurseForge modpack conversion,
+bundled pack overrides, automatic shader-loader installation, multiple Microsoft
+accounts in the launcher, public collection sharing, email broadcasts, and automatic
+recovery from a process crash during launcher file replacement. Petal pack v1 is a
+reference-based format; see [content support](docs/CONTENT_TYPES.md).
+
+The website and API are a single Node.js service with a local SQLite database and
+persistent files. A root Dockerfile and [Bloom hosting guide](docs/OPERATIONS.md)
+are included. Docker execution, PostgreSQL integration and an actual public rollout
+still require Linux infrastructure. See the [delivery report](docs/DELIVERY.md)
+for the implemented scope, review fixes, decisions and remaining acceptance checks.
 
 Compatibility checks cover declared conflicts and file collisions; they cannot
 guarantee that every combination of mods works together. Projects with matching

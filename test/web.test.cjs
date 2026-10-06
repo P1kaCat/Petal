@@ -23,4 +23,5 @@ test('public website never serves arbitrary files or exposes unknown private aut
   assert.equal((await s.request('/data/admin-token.txt')).status,404);
   assert.equal((await s.request('/site.js')).status,200);
   const response=await s.request('/');assert.match(response.headers.get('content-security-policy'),/script-src 'self'/);
+  assert.match(html(response),/href="\/account">Your account/);
 });

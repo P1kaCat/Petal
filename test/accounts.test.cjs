@@ -30,7 +30,9 @@ test('verification and reset tokens are private, expire, and cannot be reused; r
   assert.equal((await request('/v1/auth/reset',{method:'POST',body:{token:reset,password}})).status,400);
   await request('/v1/auth/recovery',{method:'POST',body:{email:'author@example.test'}});
   const fresh=mail.findLast(m=>m.template==='reset').variables.token;
+  const issued=await request('/v1/me/tokens',{method:'POST',token:account.data.token,body:{name:'Recovery test',scopes:['account:read'],expiresAt:now+3600000}});assert.equal(issued.status,201);
   assert.equal((await request('/v1/auth/reset',{method:'POST',body:{token:fresh,password:'changed-password-1234'}})).status,200);
+  assert.equal((await request('/v1/me',{token:issued.data.token})).status,401);
   assert.equal((await request('/v1/auth/reset',{method:'POST',body:{token:fresh,password}})).status,400);
   assert.equal((await request('/v1/me',{token:account.data.token})).status,401);
   assert.equal((await request('/v1/auth/login',{method:'POST',body:{identifier:'author@example.test',password:'changed-password-1234'}})).status,200);

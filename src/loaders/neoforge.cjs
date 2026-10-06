@@ -7,9 +7,10 @@ module.exports = ({ fetcher = fetch } = {}) => {
         const values = xmlVersions(await request(fetcher,'https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml','text'));
         return values.filter(v=>v.startsWith('1.20.1-')).map(v=>choice('neoforge',v.slice(7),version)).sort(descending);
       }
-      const parts = version.match(/^(?:1\.)?(\d+)\.(\d+)(?:\.(\d+))?$/);
+      const legacy = version.startsWith('1.');
+      const parts = version.match(legacy ? /^1\.(\d+)(?:\.(\d+))?$/ : /^(\d+)\.(\d+)(?:\.(\d+))?$/);
       if(!parts) return [];
-      const prefix = version.startsWith('1.') ? `${parts[1]}.${parts[2]}.` : `${parts[1]}.${parts[2]}.`;
+      const prefix = `${parts[1]}.${parts[2] ?? '0'}.`;
       const xml = await request(fetcher,'https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml','text');
       const candidates = xmlVersions(xml).filter(v=>v.startsWith(prefix)).map(v=>choice('neoforge',v,version)).filter(v=>includePrerelease || v.stable).sort(descending).slice(0,30);
       const verified = [];

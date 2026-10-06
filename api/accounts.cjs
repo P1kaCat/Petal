@@ -77,7 +77,7 @@ function createAccounts({db,mail,publicMode,key,now=Date.now}){
     db.exec('BEGIN IMMEDIATE');try{
       const row=tokenUser(token,'reset');
       db.prepare('UPDATE users SET passwordHash=?,salt=?,scryptParams=? WHERE id=?').run(hash,salt,JSON.stringify({N:16384,r:8,p:1}),row.userId);
-      db.prepare('DELETE FROM account_tokens WHERE userId=? AND kind=?').run(row.userId,'reset');db.prepare('DELETE FROM sessions WHERE userId=?').run(row.userId);audit(row.userId,'password.reset');db.exec('COMMIT');
+      db.prepare('DELETE FROM account_tokens WHERE userId=? AND kind=?').run(row.userId,'reset');db.prepare('DELETE FROM sessions WHERE userId=?').run(row.userId);db.prepare('DELETE FROM api_tokens WHERE userId=?').run(row.userId);audit(row.userId,'password.reset');db.exec('COMMIT');
     }catch(e){db.exec('ROLLBACK');throw e;}return {ok:true};
   }
   async function verifyEmail(token){const row=tokenUser(token,'verify');db.exec('BEGIN IMMEDIATE');try{db.prepare('UPDATE users SET emailVerified=1 WHERE id=?').run(row.userId);db.prepare('DELETE FROM account_tokens WHERE hash=?').run(row.hash);audit(row.userId,'email.verified');db.exec('COMMIT');}catch(e){db.exec('ROLLBACK');throw e;}return {ok:true};}
